@@ -33,6 +33,15 @@ router.beforeEach((to, from, next) => {
     isLoading.value = false;
   }, 500);
 });
+
+onMounted(() => {
+  try {
+    walletStore.getChatId()
+  } catch (err) {
+    console.log(err);
+    
+  }
+})
 </script>
 
 <template>

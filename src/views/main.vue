@@ -1,10 +1,12 @@
 <script setup>
-
+import { useWalletStore } from '@/stores/walletStore'
+cosnt walletStore = useWalletStore()
 </script>
 <template>
     <div class="container">
         <header>
             <h1>Главная</h1>
+            {{ walletStore.user }}
         </header>
     </div>
 </template>
