@@ -89,6 +89,7 @@ header {
 .user {
   display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 10px;
 }
 
@@ -110,7 +111,7 @@ header {
 }
 
 .name {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 16px;
 }
 
