@@ -36,7 +36,7 @@ router.beforeEach((to, from, next) => {
 
 onMounted(() => {
   try {
-    walletStore.getChatID()
+    walletStore.getUserInfo()
   } catch (err) {
     console.log(err);
     
