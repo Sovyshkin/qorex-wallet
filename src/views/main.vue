@@ -1,6 +1,6 @@
 <script setup>
 import { useWalletStore } from '@/stores/walletStore'
-cosnt walletStore = useWalletStore()
+const walletStore = useWalletStore()
 </script>
 <template>
     <div class="container">
