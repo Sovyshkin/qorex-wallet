@@ -25,14 +25,14 @@ const hideBalanceActive = ref(walletStore.hideBalanceActive);
 const toggleCodePassword = (val) => {
   codePasswordActive.value = val;
   walletStore.setCodePasswordActive(val);
+  console.log(val);
+  
 
   if (!val) {
     walletStore.setPinVerified(false);
   } else {
     // Перенаправляем на страницу установки PIN-кода при первом включении
-    if (!walletStore.pinCode) {
-      router.push("/profile/pin-code?setup=true");
-    }
+      router.push("/create-pin");
   }
 };
 
