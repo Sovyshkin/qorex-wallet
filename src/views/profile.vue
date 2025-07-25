@@ -71,10 +71,10 @@ const goRoute = (route) => {
   <main class="profile">
     <div class="user profile-item">
       <div class="wrap-avatar">
-        <img src="../assets/image.png" alt="" />
+        <img :src="walletStore.user.photo_url" alt="" />
       </div>
       <div class="user-info">
-        <span class="name">@username</span>
+        <span class="name">@{{ walletStore.user.username }}</span>
         <span class="rang">{{ t('beginner') }}</span>
       </div>
     </div>

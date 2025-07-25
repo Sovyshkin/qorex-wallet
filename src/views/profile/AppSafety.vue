@@ -75,7 +75,7 @@ watch(
           <img :src="`/assets/${item.icon}.png`" :alt="item.icon" />
           <span class="list-value">{{ item.name }}</span>
         </div>
-        <span class="tg-name">@username</span>
+        <span class="tg-name">@{{ walletStore.user.username }}</span>
       </div>
     </div>
     <h2 class="profile-value">{{ t("logIn") }}</h2>

@@ -79,7 +79,7 @@ export const useWalletStore = defineStore("wallet", () => {
     }
   };
 
-  const getChatID = () => {
+  const getUserInfo = () => {
       if (window.Telegram && window.Telegram.WebApp) {
         const initData = window.Telegram.WebApp.initData;
         if (initData) {
@@ -88,8 +88,7 @@ export const useWalletStore = defineStore("wallet", () => {
           const userString = params.get("user");
           if (userString) {
             user.value = JSON.parse(userString);
-            console.log(user.value);
-            localStorage.setItem("chatID", user.value.id);
+            localStorage.setItem("user", user.value);
           }
         }
       } else {
@@ -98,7 +97,7 @@ export const useWalletStore = defineStore("wallet", () => {
     }
 
   return {
-    getChatID,
+    getUserInfo,
     user,
     balance,
     changeLang,
