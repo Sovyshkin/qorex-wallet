@@ -84,6 +84,7 @@ const { t } = useI18n();
 
 header {
   padding: 15px 20px;
+  height: 10vh;
 }
 
 .user {
@@ -125,7 +126,7 @@ header {
 }
 
 .wrap-balance {
-  height: fit-content;
+  height: 40vh;
 }
 
 .wrap-text {
