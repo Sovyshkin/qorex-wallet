@@ -41,7 +41,11 @@ const messages = {
     history_text: 'Здесь будут отображаться ваши финансовые операции',
     deposit_wallet: 'Пополнить кошелёк',
     enter_pincode: 'Введите PIN-код',
-    create_pincode: 'Придумайте PIN-код'
+    create_pincode: 'Придумайте PIN-код',
+    total_balance: "Общий баланс",
+    deposit: 'Пополнить',
+    send: 'Отправить',
+    pay: 'Оплатить'
   },
   EN: {
     referal: 'Referral program',
@@ -84,7 +88,11 @@ const messages = {
     history_text: 'Your financial transactions will be displayed here',
     deposit_wallet: 'Top up your wallet',
     enter_pincode: 'Enter the PIN code',
-    create_pincode: 'Come up with a PIN code'
+    create_pincode: 'Come up with a PIN code',
+    total_balance: "Total balance",
+    deposit: 'Deposit',
+    send: 'Send',
+    pay: 'To pay'
   }
 };
 

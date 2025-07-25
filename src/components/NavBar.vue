@@ -82,7 +82,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #007aff;
+  background-color: #0373ff;
   padding: 10px;
   border-radius: 12px;
 }
@@ -97,7 +97,7 @@ button span {
 }
 
 button.active {
-  color: var(--tg-theme-button-color, #007aff);
+  color: var(--tg-theme-button-color, #0373ff);
 }
 
 button .icon {

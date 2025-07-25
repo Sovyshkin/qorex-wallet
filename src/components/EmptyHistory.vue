@@ -47,7 +47,7 @@ p {
 
 .btn {
     width: 100%;
-    background-color: #007aff;
+    background-color: #0373ff;
     padding: 15px 0;
     border-radius: 12px;
     display: flex;
