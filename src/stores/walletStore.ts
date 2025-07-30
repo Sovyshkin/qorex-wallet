@@ -4,16 +4,24 @@ import { useI18n } from "vue-i18n";
 import i18n from "@/i18n";
 import { useRouter } from "vue-router";
 import Cookies from 'js-cookie';
+import axios from 'axios'
 
 export const useWalletStore = defineStore("wallet", () => {
   const balance = ref(0);
+  const usdt_price = ref(0)
   const { t } = useI18n();
   const router = useRouter();
 
-  const user = ref({})
+  const message_status = ref('')
+  const user = ref({
+    first_name: 'Вадим',
+    last_name: 'Заньков',
+    username: 'zankov_22',
+    id: '666999'
+  })
   const codePasswordActive = ref(false);
   const hideBalanceActive = ref(false);
-  const pinCode = ref(Cookies.get('pinCode') || ""); // Загружаем из куков при инициализации
+  const pinCode = ref();
   const isPinVerified = ref(false);
 
   const setCodePasswordActive = (val: boolean) => {
@@ -28,9 +36,19 @@ export const useWalletStore = defineStore("wallet", () => {
     isPinVerified.value = val;
   };
 
-  const setPinCode = (pin: string) => {
+  const setPinCode = async (pin: string) => {
     pinCode.value = pin;
-    Cookies.set('pinCode', pin, { expires: 365 }); // Сохраняем в куки на год
+    let response = await axios.patch(`/update_pincode/${user.value.id}`, {
+      pincode: pinCode.value
+    })
+    if (response.status == 200) {
+      Cookies.set('pinCode', pin, { expires: 365 });
+      message_status.value = 'success'
+      setTimeout(() => {
+        message_status.value = ''
+      }, 2500)
+    }
+    console.log(response);
   };
 
   const verifyPin = (enteredPin: string) => {
@@ -96,9 +114,52 @@ export const useWalletStore = defineStore("wallet", () => {
       }
     }
 
+  const createUser = async () => {
+    try {
+      console.log(user.value);
+      let response = await axios.post(`/new_user`, {
+        first_name: user.value.first_name,
+        last_name: user.value.last_name,
+        username: user.value.username,
+        tg_id: user.value.id,
+      })
+      console.log(response);
+    } catch (err) {
+      console.log(err);
+      
+    }
+  }
+
+  const getUser = async () => {
+    try {
+      let response = await axios.get(`/user/${user.value.id}`)
+      console.log(response);
+    } catch (err) {
+      console.log(err);
+      if (err.status == 404) {
+        await createUser()
+      }
+    }
+  }
+
+  const getPrice = async () => {
+    try {
+      let response = await axios.get('/last_price')
+      console.log(response);
+      usdt_price.value = response.data.last_price
+    } catch (err) {
+      console.log(err);
+      
+    }
+  }
+
   return {
+    message_status,
+    usdt_price,
+    getPrice,
     getUserInfo,
     user,
+    getUser,
     balance,
     changeLang,
     goBack,
@@ -112,6 +173,7 @@ export const useWalletStore = defineStore("wallet", () => {
     setCodePasswordActive,
     setHideBalanceActive,
     setPinVerified,
-    setPinCode
+    setPinCode,
+    createUser
   };
 });

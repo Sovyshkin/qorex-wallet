@@ -26,8 +26,6 @@ const toggleCodePassword = (val) => {
   codePasswordActive.value = val;
   walletStore.setCodePasswordActive(val);
   console.log(val);
-  
-
   if (!val) {
     walletStore.setPinVerified(false);
   } else {

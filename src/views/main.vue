@@ -2,8 +2,19 @@
 import { useWalletStore } from "@/stores/walletStore";
 const walletStore = useWalletStore();
 import { useI18n } from "vue-i18n";
+import { onMounted } from 'vue'
 
 const { t } = useI18n();
+
+onMounted(async () => {
+  try {
+    await walletStore.getUser()
+    await walletStore.getPrice()
+  } catch (err) {
+    console.log(err);
+    
+  }
+})
 </script>
 <template>
   <div class="wrapper">
@@ -17,7 +28,7 @@ const { t } = useI18n();
     </header>
     <main class="container">
       <div class="wrap-balance">
-        <div class="balance">
+        <div class="balance" @click="walletStore.setHideBalanceActive(!walletStore.hideBalanceActive)">
           <div class="wrap-text">
             <span>{{ t("total_balance") }}</span>
             <img
@@ -27,7 +38,8 @@ const { t } = useI18n();
             />
             <img src="../assets/open.png" v-else alt="open_balance" />
           </div>
-          <h2 class="balance-rub">0.0 ₽</h2>
+          <h2 class="balance-rub" v-if="!walletStore.hideBalanceActive">0.0 ₽</h2>
+          <h2 class="balance-rub" v-else>********</h2>
         </div>
         <div class="actions">
           <button class="btn">
@@ -59,12 +71,14 @@ const { t } = useI18n();
             />
             <div class="coin-currency">
                 <span class="coin-name">USDT</span>
-                <span class="currency-rate">75.95 ₽</span>
+                <span class="currency-rate">{{ walletStore.usdt_price }} ₽</span>
             </div>
           </div>
           <div class="coin-activity">
-            <span class="coin-balance">0.0 ₽</span>
-            <span class="coin-balance-name">0.0 USDT</span>
+            <span class="coin-balance" v-if="!walletStore.hideBalanceActive">0.0 ₽</span>
+            <span class="coin-balance" v-else>********</span>
+            <span class="coin-balance-name" v-if="!walletStore.hideBalanceActive">0.0 USDT</span>
+            <span class="coin-balance-name" v-else>********</span>
           </div>
         </div>
       </div>
@@ -127,6 +141,10 @@ header {
 
 .wrap-balance {
   height: 40vh;
+}
+
+.balance {
+    cursor: pointer;
 }
 
 .wrap-text {
@@ -208,11 +226,19 @@ h2 {
     font-weight: 500;
 }
 
+.coin-name, .currency-rate {
+  text-align: left;
+}
+
 .currency-rate, .coin-balance-name {
     color: #9c9da4;
     font-size: 14px;
     letter-spacing: .15px;
     line-height: 18px;
+}
+
+.coin-balance-name {
+  text-align: end;
 }
 
 .coin-balance {

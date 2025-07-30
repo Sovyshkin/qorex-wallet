@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import NavBar from './components/NavBar.vue';
 import AppLoader from './components/AppLoader.vue';
+import AppMessage from './components/AppMessage.vue'
 import { useWalletStore } from '@/stores/walletStore.ts'
 
 const router = useRouter();
@@ -46,6 +47,7 @@ onMounted(() => {
 
 <template>
   <main class="wrapper">
+    <AppMessage/>
     <div class="wrap-load" v-if="isLoading">
       <AppLoader/>
     </div>
@@ -192,5 +194,9 @@ button::-moz-focus-inner {
 
 .vue-devtools__panel {
   display: none !important;
+}
+
+h1 {
+  text-align: center;
 }
 </style>

@@ -30,6 +30,11 @@ const router = createRouter({
       name: "safety",
     },
     {
+      path: "/profile/devices",
+      component: () => import("../views/profile/AppDevices.vue"),
+      name: "devices",
+    },
+    {
       path: "/create-pin",
       name: "CreatePin",
       component: () => import("../views/profile/PinCode.vue"),
