@@ -33,7 +33,7 @@ const setActiveTab = (tabId) => {
         @click.prevent="navigate"
         v-if="item.id == 'scanner'"
       >
-        <img :src="`/assets/${item.icon}.png`" />
+        <img :src="`/assets/${item.icon}.svg`" />
       </button>
       <button 
         @click="navigate" 
@@ -41,7 +41,7 @@ const setActiveTab = (tabId) => {
         @click.prevent="navigate"
         v-else
       >
-        <img :src="`/assets/${item.icon}.png`" class="icon" />
+        <img :src="`/assets/${item.icon}.svg`" class="icon" />
         <span>{{ item.name }}</span>
       </button>
     </router-link>
@@ -55,20 +55,18 @@ const setActiveTab = (tabId) => {
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 12px 20px;
   background: white;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   z-index: 100;
-  border-top: 1px solid rgb(190, 188, 188);
+  border-radius: 8px 8px 0 0;
 }
 
 button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
   border: none;
   background: none;
   font-size: 14px;
@@ -76,24 +74,28 @@ button {
   color: #888;
   cursor: pointer;
   transition: all 0.3s ease;
+  opacity: 0.6;
 }
 
 .scanner {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #0373ff;
-  padding: 10px;
-  border-radius: 12px;
+  background-color: #DEEC51;
+  padding: 8px;
+  border-radius: 8px;
+  opacity: 1;
 }
 
 .scanner img {
-  height: 35px;
+  height: 36px;
+  width: 36px;
 }
 
 button span {
-  font-size: 14px;
-  font-weight: 600;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 300;
 }
 
 button.active {
@@ -101,13 +103,16 @@ button.active {
 }
 
 button .icon {
-  width: 20px;
-  height: 20px;
-  stroke-width: 1.5;
+  width: 24px;
+  height: 24px;
 }
 
 /* Анимация при нажатии */
 button:active {
   transform: scale(0.95);
+}
+
+.active {
+  opacity: 1;
 }
 </style>

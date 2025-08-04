@@ -131,7 +131,7 @@ h1 {
 }
 
 .pin-dot.active {
-  background-color: #506eec;
+  background-color: #DEEC51;
   transform: scale(1.2);
 }
 

@@ -9,7 +9,7 @@ const walletStore = useWalletStore()
 </script>
 <template>
   <header class="header">
-    <img class="arrow" src="../../assets/arrow-left.png" alt="" @click="walletStore.goBack()" />
+    <img class="arrow" src="../../assets/arrow-left.svg" alt="" @click="walletStore.goBack()" />
     <h1>{{ t("select_lang") }}</h1>
     <div class="emp"></div>
   </header>
@@ -19,7 +19,7 @@ const walletStore = useWalletStore()
       <img
         v-if="lang.active"
         class="check"
-        src="../../assets/check.png"
+        src="../../assets/check.svg"
         alt=""
       />
     </div>
@@ -27,7 +27,7 @@ const walletStore = useWalletStore()
 </template>
 <style scoped>
 .header {
-    padding: 20px;
+    padding: 20px 15px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -36,15 +36,19 @@ const walletStore = useWalletStore()
 }
 
 .arrow{ 
-    height: 18px;
+    height: 32px;
 }
 
 h1 {
-    font-size: 18px;
-    font-weight: 600;
+  color: #141414;
+}
+
+.emp {
+  width: 32px;
 }
 .lang-list {
-    width: 70%;
+  padding: 0 15px;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -52,18 +56,22 @@ h1 {
 }
 
 .list-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #fff;
+  transition: all 0.3s ease;
+  padding: 16px;
+  border-radius: 16px;
 }
 
 .list-value {
-    font-size: 16px;
-    font-weight: 500;
+  font-size: 14px;
 }
 
 .check {
-    height: 18px;
+    height: 24px;
+    width: 24px;
 }
 </style>

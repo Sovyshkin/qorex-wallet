@@ -63,9 +63,9 @@ onMounted(() => {
 </template>
 
 <style>
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Manrope:wght@200..800&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@100..900&display=swap');
 #app {
-  font-family: "Manrope", sans-serif;
+  font-family: "Geologica", sans-serif;
   width: 100%;
   background-color: #fff;
 }
@@ -73,9 +73,12 @@ onMounted(() => {
   padding: 0px;
   margin: 0px;
   border: none;
+  font-family: "Geologica", sans-serif;
   font-weight: 400;
-  font-style: normal;
-  font-family: "Manrope", sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: #1C1C1C;
 }
 
 *,

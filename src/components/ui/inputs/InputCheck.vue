@@ -81,7 +81,7 @@ const handleChange = (event) => {
     content: "";
     width: 100%;
     height: 100%;
-    background: #506eec;
+    background: #DEEC51;
     display: block;
     transform: scale(0);
     opacity: 1;
@@ -91,12 +91,12 @@ const handleChange = (event) => {
     padding-left: 8px;
   }
   .checkbox-wrapper-46 .cbx:hover span:first-child {
-    border-color: #506eec;
+    border-color: #DEEC51;
   }
 
   .checkbox-wrapper-46 .inp-cbx:checked + .cbx span:first-child {
-    background: #506eec;
-    border-color: #506eec;
+    background: #DEEC51;
+    border-color: #DEEC51;
     animation: wave-46 0.4s ease;
   }
   .checkbox-wrapper-46 .inp-cbx:checked + .cbx span:first-child svg {

@@ -3,8 +3,14 @@ import { useWalletStore } from "@/stores/walletStore";
 const walletStore = useWalletStore();
 import { useI18n } from "vue-i18n";
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 const { t } = useI18n();
+const router = useRouter()
+
+const goRoute = (name) => {
+  router.push({ name })
+}
 
 onMounted(async () => {
   try {
@@ -42,27 +48,18 @@ onMounted(async () => {
           <h2 class="balance-rub" v-else>********</h2>
         </div>
         <div class="actions">
-          <button class="btn">
-            <div class="wrap-img">
-              <img src="../assets/deposit.png" alt="deposit" />
-            </div>
+          <button class="btn deposit" @click="goRoute('deposit')">
             <span>{{ t("deposit") }}</span>
+            <img src="../assets/deposit.svg" alt="deposit" />
           </button>
-          <button class="btn">
-            <div class="wrap-img">
-              <img src="../assets/send.png" alt="send" />
-            </div>
-            <span>{{ t("send") }}</span>
-          </button>
-          <button class="btn">
-            <div class="wrap-img">
-              <img src="../assets/pay.png" alt="pay" />
-            </div>
-            <span>{{ t("pay") }}</span>
+          <button class="btn pay_out">
+            <span>{{ t("pay_out") }}</span>
+            <img src="../assets/pay_out.svg" alt="">
           </button>
         </div>
       </div>
       <div class="coins">
+        <h3>{{ t('actives') }}</h3>
         <div class="coin">
           <div class="coin-info">
             <img
@@ -86,19 +83,19 @@ onMounted(async () => {
   </div>
 </template>
 <style scoped>
-.wrapper {
+.container {
   height: 90vh;
-  background: linear-gradient(181deg, #007aff 0%, rgba(90, 185, 219, 1) 50%);
-  color: #fff;
   font-weight: 500;
   display: flex;
   flex-direction: column;
   gap: 30px;
+  background-color: #f5f5f5;
+  padding: 15px 20px;
 }
 
 header {
-  padding: 15px 20px;
   height: 10vh;
+  padding: 15px 20px;
 }
 
 .user {
@@ -109,8 +106,8 @@ header {
 }
 
 .wrap-avatar {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   background-color: #f0f0f0;
@@ -126,24 +123,26 @@ header {
 }
 
 .name {
-  font-weight: 500;
-  font-size: 16px;
+  color: #141414;
 }
 
-.container,
 .wrap-balance {
-  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-
-.wrap-balance {
-  height: 40vh;
+  background-color: #141414;
+  background-image: url('../assets/bg.svg');
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 24px;
+  gap: 24px;
+  justify-content: space-between;
+  border-radius: 16px;
 }
 
 .balance {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
     cursor: pointer;
 }
 
@@ -151,57 +150,70 @@ header {
   display: flex;
   align-items: center;
   gap: 7px;
+  opacity: 0.4;
+}
+
+.wrap-text span {
+  color: #fff;
+  font-weight: 300;
+  font-size: 14px;
 }
 
 .wrap-text img {
-  height: 24px;
+  height: 16px;
+  width: 16px;
 }
 
 h2 {
-  text-align: center;
   font-size: 34px;
-  font-weight: 600;
+  font-weight: 300;
+  color: #fff;
+}
+
+h3 {
+  font-weight: 300;
+  font-size: 20px;
 }
 
 .actions {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 25px;
 }
 
 .btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: 0.25px;
-}
-
-.wrap-img {
-  background-color: #fff;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 8px;
 }
 
-.wrap-img img {
-  height: 24px;
+.btn span {
+  font-weight: 300;
+  font-size: 14px;
+  color: #141414;
+}
+
+.deposit {
+  background-color: #DEEC51;
+}
+
+.pay_out {
+  background-color: #262626;
+}
+
+.pay_out span {
+  color: #fff;
 }
 
 .coins {
-  height: 50vh;
-  width: 100%;
-  background-color: #fff;
-  border-radius: 25px 25px 0 0;
-  color: black;
-  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .coin {
@@ -209,6 +221,9 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 16px;
 }
 
 .coin-info {
@@ -222,19 +237,16 @@ h2 {
     flex-direction: column;
 }
 
-.coin-name, .coin-balance {
-    font-weight: 500;
-}
-
 .coin-name, .currency-rate {
   text-align: left;
 }
 
 .currency-rate, .coin-balance-name {
-    color: #9c9da4;
+    color: #4F4F4F;
     font-size: 14px;
     letter-spacing: .15px;
     line-height: 18px;
+    font-weight: 300;
 }
 
 .coin-balance-name {

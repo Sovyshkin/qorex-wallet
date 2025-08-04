@@ -58,7 +58,7 @@ watch(
   <header class="header">
     <img
       class="arrow"
-      src="../../assets/arrow-left.png"
+      src="../../assets/arrow-left.svg"
       alt=""
       @click="walletStore.goBack()"
     />
@@ -70,7 +70,9 @@ watch(
     <div class="auth profile-item">
       <div class="list-item" v-for="(item, i) in auth" :key="i">
         <div class="info">
-          <img :src="`/assets/${item.icon}.png`" :alt="item.icon" />
+          <div class="wrap-img">
+            <img :src="`/assets/${item.icon}.svg`" :alt="item.icon" />
+          </div>
           <span class="list-value">{{ item.name }}</span>
         </div>
         <span class="tg-name">@{{ walletStore.user.username }}</span>
@@ -78,10 +80,11 @@ watch(
     </div>
     <h2 class="profile-value">{{ t("logIn") }}</h2>
     <div class="logIn profile-item">
-      <!-- Защита PIN-кодом -->
       <div class="list-item">
         <div class="info">
-          <img src="/assets/pin-code.png" alt="pin-code" />
+          <div class="wrap-img">
+            <img src="/assets/pin-code.svg" alt="pin-code" />
+          </div>
           <span class="list-value">{{ t("code_password") }}</span>
         </div>
         <InputCheck
@@ -90,10 +93,11 @@ watch(
         />
       </div>
 
-      <!-- Скрытие баланса -->
       <div class="list-item">
         <div class="info">
-          <img src="/assets/hide.png" alt="hide" />
+          <div class="wrap-img">
+            <img src="/assets/hide-balance.svg" alt="hide" />
+          </div>
           <span class="list-value">{{ t("hide_balance") }}</span>
         </div>
         <InputCheck
@@ -107,7 +111,7 @@ watch(
 
 <style scoped>
 .header {
-  padding: 20px;
+  padding: 20px 15px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -115,37 +119,27 @@ watch(
   gap: 20px;
 }
 
-.arrow {
-  height: 18px;
-}
-
 h1 {
-  font-size: 18px;
-  font-weight: 600;
+  color: #141414;
 }
 .safety {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 20px 10px 100px 10px;
+  padding: 20px 15px 100px 15px;
 }
 
 .profile-item {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  background-color: #fff;
-  padding: 10px 15px;
-  border-radius: 20px;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .profile-value {
-  font-size: 14px;
-  color: #b2aaaa;
-  font-weight: 600;
-  padding-left: 10px;
+  color: #141414;
+  font-weight: 300;
 }
 
 .list-item {
@@ -153,12 +147,14 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background-color: #fff;
   transition: all 0.3s ease;
+  padding: 16px;
+  border-radius: 16px;
 }
 
 .list-value {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
 }
 
 .info {
@@ -167,13 +163,23 @@ h1 {
   gap: 10px;
 }
 
-.info img {
+.wrap-img {
+  background-color: #deec51;
+  padding: 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wrap-img img {
   height: 24px;
   width: 24px;
 }
 
 .arrow {
-  height: 14px;
+  height: 32px;
+  width: 32px;
   transition: transform 0.3s ease;
 }
 
@@ -182,48 +188,13 @@ h1 {
   transition: transform 0.3s ease;
 }
 
-.exit {
-  color: rgb(244, 44, 44);
-  font-weight: 600;
-  font-size: 16px;
-}
-
-.user {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-}
-
-.wrap-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  overflow: hidden;
-  background-color: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wrap-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 16px;
-}
-
 .tg-name {
-  color: #888;
-  font-size: 14px;
-  font-weight: 500;
+  opacity: 0.4;
+  font-size: 12px;
+  color: #262626;
+}
+
+.emp {
+  width: 32px;
 }
 </style>

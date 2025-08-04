@@ -35,6 +35,16 @@ const router = createRouter({
       name: "devices",
     },
     {
+      path: "/profile/info",
+      component: () => import("../views/profile/AppInfo.vue"),
+      name: "info",
+    },
+    {
+      path: "/profile/accounts",
+      component: () => import("../views/profile/OfficialAccounts.vue"),
+      name: "accounts",
+    },
+    {
       path: "/create-pin",
       name: "CreatePin",
       component: () => import("../views/profile/PinCode.vue"),
@@ -57,6 +67,11 @@ const router = createRouter({
       path: "/scanner",
       component: () => import("../views/scanner.vue"),
       name: "scanner",
+    },
+    {
+      path: "/deposit",
+      component: () => import("../views/deposit.vue"),
+      name: "deposit",
     },
   ],
 });
