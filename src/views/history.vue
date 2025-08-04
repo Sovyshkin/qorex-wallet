@@ -12,8 +12,8 @@ const { t } = useI18n();
         <div class="history-item">
           <div class="history-info">
             <img
-              src="/assets/shopping.png"
-              alt="shopping"
+              src=""
+              alt=""
             />
             <div class="history-more-info">
                 <span class="history-type">USDT</span>
