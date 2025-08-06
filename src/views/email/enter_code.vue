@@ -1,27 +1,31 @@
 <script setup>
 import { useI18n } from "vue-i18n";
-import { useWalletStore } from '@/stores/walletStore.ts'
+import { useWalletStore } from "@/stores/walletStore.ts";
 
 const { t } = useI18n();
-const walletStore = useWalletStore()
+const walletStore = useWalletStore();
 </script>
 <template>
   <header class="header">
     <img
       class="arrow"
-      src="../assets/arrow-left.svg"
+      src="../../assets/arrow-left.svg"
       alt=""
       @click="walletStore.goBack()"
     />
-    <h1>{{ t("deposit_page") }}</h1>
+    <h1>{{ t("enter_code") }}</h1>
     <div class="emp"></div>
   </header>
   <main class="container">
-    <div class="group">
-        <input type="number" :placeholder="t('select_amount')" id="amount" v-model="walletStore.amount"/>
-        <span class="group-item">USDT</span>
-    </div>
-    <button class="btn" @click="walletStore.createInvoice()">{{ t("continue") }}</button>
+    <input
+      type="number"
+      :placeholder="t('your_code')"
+      id="code"
+      v-model="walletStore.code"
+    />
+    <button class="btn" @click="walletStore.checkCode()">
+      {{ t("confirm") }}
+    </button>
   </main>
 </template>
 <style scoped>
@@ -40,6 +44,7 @@ const walletStore = useWalletStore()
 
 h1 {
   color: #141414;
+  text-align: center;
 }
 
 .container {
@@ -85,13 +90,15 @@ select::placeholder {
 }
 
 .group {
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.group-item {
-    position: absolute;
-    right: 4%;
-    top: 50%;
-    transform: translateY(-50%);
+p {
+  text-align: center;
+  font-weight: 300;
+  font-size: 14px;
+  color: #141414;
 }
 </style>

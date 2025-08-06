@@ -2,17 +2,18 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useWalletStore } from "../../stores/walletStore.ts";
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const { t } = useI18n();
 const walletStore = useWalletStore();
 const router = useRouter();
+const route = useRoute()
 
 const pin = ref("");
 const pressedButton = ref(null);
 
 // Определяем режим работы на основе наличия PIN-кода
-const isCreateMode = !walletStore.hasPinCode();
+const isCreateMode = route.query.createMode || false
 
 const handleNumberClick = (num) => {
   if (pin.value.length < 4) {
@@ -25,8 +26,7 @@ const handleNumberClick = (num) => {
       router.push({ name: 'safety' });
     } else {
       if (walletStore.verifyPin(pin.value)) {
-        walletStore.setPinVerified(true);
-        router.push({ name: 'main' });
+        router.go(-1);
       } else {
         pin.value = "";
       }

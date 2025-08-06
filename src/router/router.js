@@ -73,6 +73,16 @@ const router = createRouter({
       component: () => import("../views/deposit.vue"),
       name: "deposit",
     },
+    {
+      path: "/email_add",
+      component: () => import("../views/email/email_add.vue"),
+      name: "email_add",
+    },
+    {
+      path: "/enter_code",
+      component: () => import("../views/email/enter_code.vue"),
+      name: "enter_code",
+    },
   ],
 });
 

@@ -7,19 +7,18 @@ import AppMessage from './components/AppMessage.vue'
 import { useWalletStore } from '@/stores/walletStore.ts'
 
 const router = useRouter();
-const isLoading = ref(false);
 const walletStore = useWalletStore()
 
 router.beforeEach((to, from, next) => {
-  isLoading.value = true;
+  walletStore.isLoading = true;
   
   if (to.meta.requiresPin && !walletStore.isPinVerified.value) {
-    isLoading.value = false;
+    walletStore.isLoading = false;
     return next({ name: 'EnterPin' });
   }
   
   if (to.name === 'CreatePin' && walletStore.hasPinCode()) {
-    isLoading.value = false;
+    walletStore.isLoading = false;
     return next({ name: 'EnterPin' });
   }
 
@@ -31,7 +30,7 @@ router.beforeEach((to, from, next) => {
   next();
   
   setTimeout(() => {
-    isLoading.value = false;
+    walletStore.isLoading = false;
   }, 500);
 });
 
@@ -48,7 +47,7 @@ onMounted(() => {
 <template>
   <main class="wrapper">
     <AppMessage/>
-    <div class="wrap-load" v-if="isLoading">
+    <div class="wrap-load" v-if="walletStore.isLoading">
       <AppLoader/>
     </div>
     <router-view v-else v-slot="{ Component }">

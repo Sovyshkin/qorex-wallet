@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { useWalletStore } from "@/stores/walletStore";
@@ -17,11 +17,6 @@ const params = ref([
     name: t("lang"),
     icon: "lang",
     route: "select_lang",
-  },
-  {
-    name: t("devices"),
-    icon: "devices",
-    route: "devices",
   },
 ]);
 
@@ -45,9 +40,16 @@ const aboutUs = ref([
 
 const referal = ref([
   {
+    name: t("email_add_profile"),
+    icon: "email",
+    route: "email_add",
+    show: walletStore.user.email ? false : true,
+  },
+  {
     name: t("referal"),
     icon: "referal",
     route: "referal",
+    show: true,
   },
 ]);
 
@@ -61,11 +63,23 @@ const support = ref([
 
 const goRoute = (route) => {
   try {
-    router.push({ name: route });
+    if (route == "faq") {
+      window.location.href = "https://gardawallet.com";
+    } else {
+      router.push({ name: route });
+    }
   } catch (err) {
     console.log(err);
   }
 };
+
+onMounted(async () => {
+  try {
+    await walletStore.getUser();
+  } catch (err) {
+    console.log(err);
+  }
+});
 </script>
 
 <template>
@@ -77,20 +91,21 @@ const goRoute = (route) => {
       <span class="name">@{{ walletStore.user.username }}</span>
     </div>
     <div class="referal profile-item">
-      <div
-        class="list-item"
-        v-for="(item, i) in referal"
-        :key="i"
-        @click="goRoute(item.route)"
-      >
-        <div class="info">
-          <div class="wrap-img">
-            <img :src="`/assets/${item.icon}.svg`" :alt="item.icon" />
+      <template v-for="(item, i) in referal" :key="i">
+        <div class="list-item" v-if="item.show" @click="goRoute(item.route)">
+          <div class="info">
+            <div class="wrap-img">
+              <img :src="`/assets/${item.icon}.svg`" :alt="item.icon" />
+            </div>
+            <span class="list-value">{{ item.name }}</span>
           </div>
-          <span class="list-value">{{ item.name }}</span>
+          <img
+            class="arrow"
+            src="../assets/arrow-right.svg"
+            alt="arrow-right"
+          />
         </div>
-        <img class="arrow" src="../assets/arrow-right.svg" alt="arrow-right" />
-      </div>
+      </template>
     </div>
     <h2 class="profile-value">{{ t("params") }}</h2>
     <div class="params profile-item">
@@ -126,7 +141,7 @@ const goRoute = (route) => {
         <img class="arrow" src="../assets/arrow-right.svg" alt="arrow-right" />
       </div>
     </div>
-    <div class="about-us profile-item">
+    <!-- <div class="about-us profile-item">
       <div
         class="list-item"
         v-for="(item, i) in support"
@@ -141,8 +156,10 @@ const goRoute = (route) => {
         </div>
         <img class="arrow" src="../assets/arrow-right.svg" alt="arrow-right" />
       </div>
-    </div>
-    <button class="btn exit profile-item">{{ t("exit") }}</button>
+    </div> -->
+    <button class="btn exit profile-item" @click="walletStore.logOut()">
+      {{ t("exit") }}
+    </button>
   </main>
 </template>
 

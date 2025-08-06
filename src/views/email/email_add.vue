@@ -9,19 +9,19 @@ const walletStore = useWalletStore()
   <header class="header">
     <img
       class="arrow"
-      src="../assets/arrow-left.svg"
+      src="../../assets/arrow-left.svg"
       alt=""
       @click="walletStore.goBack()"
     />
-    <h1>{{ t("deposit_page") }}</h1>
+    <h1>{{ t("email_add") }}</h1>
     <div class="emp"></div>
   </header>
   <main class="container">
     <div class="group">
-        <input type="number" :placeholder="t('select_amount')" id="amount" v-model="walletStore.amount"/>
-        <span class="group-item">USDT</span>
+        <p>{{ t('email_text') }}</p>
+        <input type="email" :placeholder="t('email_enter')" id="email" v-model="walletStore.email"/>
     </div>
-    <button class="btn" @click="walletStore.createInvoice()">{{ t("continue") }}</button>
+    <button class="btn" @click="walletStore.sendCode()">{{ t("email_send") }}</button>
   </main>
 </template>
 <style scoped>
@@ -85,13 +85,15 @@ select::placeholder {
 }
 
 .group {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.group-item {
-    position: absolute;
-    right: 4%;
-    top: 50%;
-    transform: translateY(-50%);
+p {
+    text-align: center;
+    font-weight: 300;
+    font-size: 14px;
+    color: #141414;
 }
 </style>

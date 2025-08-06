@@ -30,7 +30,7 @@ const toggleCodePassword = (val) => {
     walletStore.setPinVerified(false);
   } else {
     // Перенаправляем на страницу установки PIN-кода при первом включении
-      router.push("/create-pin");
+      router.push({ name: 'create-pin', query: { createMode: true } });
   }
 };
 
@@ -38,6 +38,15 @@ const toggleHideBalance = (val) => {
   hideBalanceActive.value = val;
   walletStore.setHideBalanceActive(val);
 };
+
+const goBack = () => {
+  try {
+    router.push({ name: "profile" })
+  } catch (err) {
+    console.log(err);
+    
+  }
+}
 
 watch(
   () => walletStore.codePasswordActive,
@@ -60,7 +69,7 @@ watch(
       class="arrow"
       src="../../assets/arrow-left.svg"
       alt=""
-      @click="walletStore.goBack()"
+      @click="goBack()"
     />
     <h1>{{ t("safety") }}</h1>
     <div class="emp"></div>

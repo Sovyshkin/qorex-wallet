@@ -50,7 +50,17 @@ const messages = {
     privacy_policy: 'Политика конфиденциальности',
     actives: 'Активы',
     deposit_page: "Пополнение",
-    select_amount: 'Укажите сумму'
+    select_amount: 'Укажите сумму',
+    enter_amount: "Введите сумму для пополнения",
+    continue: 'Продолжить',
+    email_add: "Email адрес",
+    email_text: 'Добавьте адрес электроной почты для повышения уровня безопасности вашего аккаунта Garda Wallet',
+    email_enter: 'Ваш email',
+    email_send: 'Отправить код',
+    email_add_profile: 'Добавить email',
+    confirm: 'Подтвердить',
+    enter_code: 'Введите код подтверждения',
+    your_code: 'Ваш код'
   },
   EN: {
     referal: 'Referral program',
@@ -100,7 +110,20 @@ const messages = {
     pay: 'To pay',
     documents: "Documents",
     terms_of_use: 'Terms of Use',
-    privacy_policy: 'Privacy policy'
+    privacy_policy: 'Privacy policy',
+    actives: 'Assets',
+    deposit_page: "Replenishment",
+    select_amount: 'Specify the amount',
+    enter_amount: "Enter the amount for the deposit",
+    continue: 'Continue',
+    email_add: "Email",
+    email_text: 'Add an email address to enhance the security of your Garda Wallet account.',
+    email_enter: 'Your email address',
+    email_send: 'Send the code',
+    email_add_profile: 'Add email',
+    confirm: 'Confirm',
+    enter_code: 'Enter the confirmation code',
+    your_code: 'Your code'
   }
 };
 
