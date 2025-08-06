@@ -1,9 +1,8 @@
 <script setup>
-import AppLoader from '@/components/AppLoader.vue'
 </script>
 <template>
     <div class="container">
-        <AppLoader/>
+        <img src="../assets/cat-loader.svg" alt="">
         В разработке...
     </div>
 </template>
@@ -17,5 +16,6 @@ import AppLoader from '@/components/AppLoader.vue'
     gap: 20px;
     font-size: 20px;
     font-weight: 600s;
+    padding: 10px;
 }
 </style>
