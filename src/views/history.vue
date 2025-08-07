@@ -1,45 +1,171 @@
 <script setup>
-import EmptyHistory from '@/components/EmptyHistory.vue'
+import EmptyHistory from "@/components/EmptyHistory.vue";
 import { useWalletStore } from "@/stores/walletStore";
 import { useI18n } from "vue-i18n";
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from 'vue-router'
 
 const walletStore = useWalletStore();
 const { t } = useI18n();
+const router = useRouter()
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+  });
+};
+
+const groupedHistory = computed(() => {
+  const groups = {};
+  walletStore.history.forEach((item) => {
+    const dateKey = formatDate(item.datatime);
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
+    }
+    groups[dateKey].push(item);
+  });
+  return groups;
+});
+
+const getStatusText = (status) => {
+  switch (status) {
+    case "success":
+      return "Успешно";
+    case "in_processing":
+      return "в обработке";
+    case "error":
+      return "Ошибка";
+    default:
+      return status;
+  }
+};
+
+const getTypeText = (type) => {
+  switch (type) {
+    case "buy":
+      return "Покупка";
+    case "deposit":
+      return "Пополнение";
+    case "withdrawal":
+      return "Вывод";
+    default:
+      return type;
+  }
+};
+
+const getCurrencySymbol = (type) => {
+  return type === "buy" ? "₽" : "USDT";
+};
+
+onMounted(async () => {
+  await walletStore.getPrice()
+}) 
 </script>
+
 <template>
+  <header class="header">
+    <img
+      class="arrow"
+      src="../assets/arrow-left.svg"
+      alt=""
+      @click="goBack()"
+    />
+    <h1>{{ t("history_tranc") }}</h1>
+    <div class="emp"></div>
+  </header>
   <div class="history">
-      <h1>{{ t('history_tranc') }}</h1>
-        <div class="history-item">
+    <template v-if="walletStore.history.length > 0">
+      <div
+        v-for="(items, date) in groupedHistory"
+        :key="date"
+        class="history-group"
+      >
+        <h2 class="history-date">{{ date }}</h2>
+        <div v-for="(item, index) in items" :key="index" class="history-item" @click="walletStore.goTransaction(item)">
           <div class="history-info">
-            <img
-              src=""
-              alt=""
-            />
+            <div class="wrap-img">
+              <img :src="`/assets/type-${item.type}.svg`" alt="transaction-type" />
+            </div>
             <div class="history-more-info">
-                <span class="history-type">USDT</span>
-                <span class="history-place">100 ₽</span>
+              <span class="history-type">{{ t(item.type) }}</span>
+              <span class="history-status" :class="item.status">{{
+                t(item.status)
+              }}</span>
             </div>
           </div>
           <div class="history-count">
-            <span class="count-rub" v-if="!walletStore.hideBalanceActive">-900 ₽</span>
-            <span class="count-rub" v-else>********</span>
-            <span class="count-usdt" v-if="!walletStore.hideBalanceActive">-9 USDT</span>
+            <span class="count-usdt" v-if="!walletStore.hideBalanceActive">
+              {{
+                item.type === "buy"
+                  ? "-"
+                  : item.type === "withdrawal"
+                  ? "-"
+                  : "+"
+              }}
+              {{ item.amount }} USDT
+            </span>
             <span class="count-usdt" v-else>********</span>
+            <span class="count-rub" v-if="!walletStore.hideBalanceActive">
+              {{
+                item.type === "buy"
+                  ? "-"
+                  : item.type === "withdrawal"
+                  ? "-"
+                  : "+"
+              }}
+              {{ walletStore.getRub(item.amount) }} ₽
+            </span>
+            <span class="count-rub" v-else>********</span>
           </div>
         </div>
-    </div>
-    <EmptyHistory v-if="false"/>
+      </div>
+    </template>
+
+    <EmptyHistory v-else />
+  </div>
 </template>
+
 <style scoped>
+.header {
+  padding: 20px 15px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+h1 {
+  color: #141414;
+}
+
+.emp {
+  width: 32px;
+}
 .history {
-  height: 100vh;
   width: 100%;
   border-radius: 25px 25px 0 0;
   color: black;
-  padding: 30px 20px;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
+}
+
+.history-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.history-date {
+  font-size: 16px;
+  font-weight: 300;
+  text-align: left;
+  color: #141414;
 }
 
 .history-item {
@@ -48,45 +174,83 @@ const { t } = useI18n();
   align-items: center;
   justify-content: space-between;
   background-color: #fff;
-  padding: 10px 15px;
+  padding: 15px;
   border-radius: 12px;
+  cursor: pointer;
+  transition: all 500ms ease;
+}
+
+.history-item:hover {
+  transform: translateY(-3px);
+  box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;
 }
 
 .history-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.history-info img {
-  height: 40px;
-  width: 40px;
+.wrap-img {
+  background-color: #deec51;
+  padding: 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.history-more-info, .history-count {
-    display: flex;
-    flex-direction: column;
+.wrap-img img {
+  height: 24px;
+  width: 24px;
 }
 
-.history-type, .history-place {
+
+.history-more-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.history-type {
   text-align: left;
+  font-weight: 400;
 }
 
-.history-type, .history-rub {
-    font-weight: 500;
+.history-status {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 400;
 }
 
-.history-place, .count-usdt {
-    color: #9c9da4;
-    font-size: 14px;
-    letter-spacing: .15px;
-    line-height: 18px;
+.history-count {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .count-usdt {
+  font-weight: 400;
+  font-size: 14px;
   text-align: end;
 }
 
-.history-rub {
-    text-align: end;
-}</style>
+.count-rub {
+  opacity: 0.4;
+  font-size: 10px;
+  text-align: end;
+  font-weight: 300;
+}
+
+.error {
+  color: #D62828;
+}
+
+.success {
+  color: #4BAB6B;
+}
+
+.in_processing {
+  color: #D5A810;
+}
+</style>

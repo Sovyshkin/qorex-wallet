@@ -24,12 +24,61 @@ export const useWalletStore = defineStore("wallet", () => {
     username: "zankov_22",
     id: "978664527",
   });
-  const user = ref({})
+  const user = ref({});
   const amount = ref("");
   const pay_link = ref("");
   const codePasswordActive = ref(false);
   const hideBalanceActive = ref(false);
-  const pinCode = ref('');
+  const pinCode = ref("");
+
+  const history = ref([
+    {
+      type: "buy",
+      status: "success",
+      amount: "3000",
+      datatime: new Date(),
+      transactionId: "d2tg4d72tgg6dfg...",
+      currencyFrom: "USDT",
+      currencyTo: "RUB",
+      seller: "CodeRed-Team",
+      mccCode: "1234",
+    },
+    {
+      type: "deposit",
+      status: "success",
+      amount: "48.01",
+      datatime: new Date(),
+      transactionId: "d2tg4d72tgg6dfg...",
+      currencyFrom: "USDT",
+      currencyTo: "RUB",
+      seller: "CodeRed-Team",
+      mccCode: "1234",
+    },
+    {
+      type: "withdrawal",
+      status: "in_processing",
+      amount: "48.01",
+      datatime: new Date(),
+      transactionId: "d2tg4d72tgg6dfg...",
+      currencyFrom: "USDT",
+      currencyTo: "RUB",
+      seller: "CodeRed-Team",
+      mccCode: "1234",
+    },
+    {
+      type: "withdrawal",
+      status: "error",
+      amount: "48.01",
+      datatime: new Date(),
+      transactionId: "d2tg4d72tgg6dfg...",
+      currencyFrom: "USDT",
+      currencyTo: "RUB",
+      seller: "CodeRed-Team",
+      mccCode: "1234",
+    },
+  ]);
+
+  const transaction = ref({});
 
   const setHideBalanceActive = (val: boolean) => {
     hideBalanceActive.value = val;
@@ -131,9 +180,9 @@ export const useWalletStore = defineStore("wallet", () => {
     try {
       let response = await axios.get(`/user/${userTg.value.id}`);
       console.log(response);
-      user.value = response.data
+      user.value = response.data;
       balance.value = response.data.balance || 0;
-      pinCode.value = response.data.pin_code
+      pinCode.value = response.data.pin_code;
       if (usdt_price.value) {
         balance_rub.value = balance.value * usdt_price.value;
       }
@@ -170,7 +219,7 @@ export const useWalletStore = defineStore("wallet", () => {
         pay_link.value = response.data.result.link;
         working_invoice = response.data.result.uuid;
         await creatingInvoceDb();
-        window.location.href = pay_link.value
+        window.location.href = pay_link.value;
       }
     } catch (err) {
       console.log(err);
@@ -240,27 +289,50 @@ export const useWalletStore = defineStore("wallet", () => {
       let response = await axios.patch(
         `/check_code?email=${email.value}&code=${code.value}&tg_id=${user.value.tg_id}`
       );
-      code.value = ''
+      code.value = "";
       console.log(response);
       if (response.status == 200) {
         message_status.value = "success";
         setTimeout(() => {
           message_status.value = "";
-          router.push({ name: 'profile' })
+          router.push({ name: "profile" });
         }, 2500);
       }
     } catch (err) {
       console.log(err);
       message_status.value = "error";
-        setTimeout(() => {
-          message_status.value = "";
-        }, 2500);
+      setTimeout(() => {
+        message_status.value = "";
+      }, 2500);
     } finally {
       isLoading.value = false;
     }
   };
 
+  const goTransaction = async (item) => {
+    try {
+      await getPrice()
+      transaction.value = { ...item };
+      transaction.value.amountRub = getRub(item.amount);
+      router.push({ name: "transaction" });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const getRub = (amount) => {
+    try {
+      return `${Math.round(amount * usdt_price.value * 100) / 100}`
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   return {
+    getRub,
+    goTransaction,
+    transaction,
+    history,
     code,
     checkCode,
     sendCode,

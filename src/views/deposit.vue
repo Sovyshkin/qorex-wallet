@@ -4,6 +4,7 @@ import { useWalletStore } from '@/stores/walletStore.ts'
 
 const { t } = useI18n();
 const walletStore = useWalletStore()
+
 </script>
 <template>
   <header class="header">

@@ -60,7 +60,20 @@ const messages = {
     email_add_profile: 'Добавить email',
     confirm: 'Подтвердить',
     enter_code: 'Введите код подтверждения',
-    your_code: 'Ваш код'
+    your_code: 'Ваш код',
+    buy: "Покупка",
+    withdrawal: 'Вывод',
+    deposit: 'Пополнение',
+    error: 'Ошибка',
+    in_processing: 'В обработке',
+    success: 'Успешно',
+    transaction: "Транзакция",
+    date_time: "Дата и время",
+    transaction_id: 'ID транзакции',
+    currency_pair: 'Обмен',
+    seller: 'Продавец',
+    mcc_code: "MCC-код",
+    copied: 'Скопировано'
   },
   EN: {
     referal: 'Referral program',
@@ -123,7 +136,20 @@ const messages = {
     email_add_profile: 'Add email',
     confirm: 'Confirm',
     enter_code: 'Enter the confirmation code',
-    your_code: 'Your code'
+    your_code: 'Your code',
+    buy: "Purchase",
+    withdrawal: 'Conclusion',
+    deposit: 'Replenishment',
+    error: 'Error',
+    in_processing: 'In processing',
+    success: 'Successfully',
+    transaction: "Transaction",
+    date_time: "Date and time",
+    transaction_id: 'Transaction ID',
+    currency_pair: 'Exchange',
+    seller: 'Seller',
+    mcc_code: "MCC code",
+    copied: 'Copied'
   }
 };
 
