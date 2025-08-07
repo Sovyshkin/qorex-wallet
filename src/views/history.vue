@@ -65,14 +65,7 @@ onMounted(async () => {
 
 <template>
   <header class="header">
-    <img
-      class="arrow"
-      src="../assets/arrow-left.svg"
-      alt=""
-      @click="goBack()"
-    />
     <h1>{{ t("history_tranc") }}</h1>
-    <div class="emp"></div>
   </header>
   <div class="history">
     <template v-if="walletStore.history.length > 0">
@@ -132,7 +125,7 @@ onMounted(async () => {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 20px;
 }
 
@@ -140,9 +133,6 @@ h1 {
   color: #141414;
 }
 
-.emp {
-  width: 32px;
-}
 .history {
   width: 100%;
   border-radius: 25px 25px 0 0;
