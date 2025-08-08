@@ -45,6 +45,11 @@ const router = createRouter({
       name: "accounts",
     },
     {
+      path: "/profile/referal",
+      component: () => import("../views/profile/AppReferal.vue"),
+      name: "referal",
+    },
+    {
       path: "/create-pin",
       name: "CreatePin",
       component: () => import("../views/profile/PinCode.vue"),
