@@ -7,7 +7,7 @@ import { createPinia } from 'pinia';
 import axios from 'axios'
 import { VueTelegramPlugin } from "vue-tg";
 
-axios.defaults.baseURL = "http://158.160.187.91:3030";
+axios.defaults.baseURL = "https://back.gardawallet.com";
 const pinia = createPinia();
 pinia.use(PiniaCookiesPlugin);
 

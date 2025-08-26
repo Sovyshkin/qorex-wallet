@@ -34,6 +34,12 @@ const handleNumberClick = (num) => {
   }
 };
 
+const handleDeleteClick = () => {
+  if (pin.value.length > 0) {
+    pin.value = pin.value.slice(0, -1);
+  }
+};
+
 const startPress = (num) => {
   pressedButton.value = num;
 };
@@ -68,7 +74,7 @@ const endPress = () => {
 
     <div class="pin-grid">
       <button
-        v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]"
+        v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
         :key="num"
         class="pin-button"
         @click="handleNumberClick(num)"
@@ -79,11 +85,36 @@ const endPress = () => {
       >
         {{ num }}
       </button>
+      
+      <div class="empty-cell"></div> <!-- Пустая ячейка для симметрии -->
+      
+      <button
+        class="pin-button"
+        @click="handleNumberClick(0)"
+        @mousedown="startPress(0)"
+        @mouseup="endPress()"
+        @mouseleave="endPress()"
+        :class="{ pressed: pressedButton === 0 }"
+      >
+        0
+      </button>
+      
+      <button
+        class="pin-button delete-button"
+        @click="handleDeleteClick"
+        @mousedown="startPress('delete')"
+        @mouseup="endPress()"
+        @mouseleave="endPress()"
+        :class="{ pressed: pressedButton === 'delete' }"
+      >
+        <img src="@/assets/delete.png" alt="Delete" class="delete-icon" />
+      </button>
     </div>
-</main>
+  </main>
 </template>
 
 <style scoped>
+/* Существующие стили остаются без изменений */
 .header {
   padding: 20px;
   width: 100%;
@@ -101,6 +132,7 @@ h1 {
   font-size: 18px;
   font-weight: 600;
 }
+
 .pin-code-container {
   max-width: 350px;
   width: 100%;
@@ -108,11 +140,6 @@ h1 {
   padding: 20px;
   text-align: center;
   font-family: Arial, sans-serif;
-}
-
-.pin-title {
-  margin-bottom: 30px;
-  color: #333;
 }
 
 .pin-dots {
@@ -182,6 +209,19 @@ h1 {
   animation: ripple 0.6s ease-out;
 }
 
+.empty-cell {
+  visibility: hidden;
+}
+
+.delete-button {
+  background-color: #f5f5f5;
+}
+
+.delete-icon {
+  width: 24px;
+  height: 24px;
+}
+
 @keyframes ripple {
   0% {
     transform: scale(0, 0);
@@ -191,9 +231,5 @@ h1 {
     transform: scale(20, 20);
     opacity: 0;
   }
-}
-
-.pin-button:nth-child(10) {
-  grid-column: 2;
 }
 </style>

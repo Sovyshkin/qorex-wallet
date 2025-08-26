@@ -51,16 +51,12 @@ const router = createRouter({
     },
     {
       path: "/create-pin",
-      name: "CreatePin",
+      name: "createPin",
       component: () => import("../views/profile/PinCode.vue"),
-      beforeEnter: (to, from, next) => {
-        const walletStore = useWalletStore();
-        walletStore.hasPinCode() ? next("/enter-pin") : next();
-      },
     },
     {
       path: "/enter-pin",
-      name: "EnterPin",
+      name: "enterPin",
       component: () => import("../views/profile/PinCode.vue"),
     },
     {

@@ -92,6 +92,7 @@ export const useWalletStore = defineStore("wallet", () => {
     if (response.status == 200) {
       Cookies.set("pinCode", pin, { expires: 365 });
       message_status.value = "success";
+      codePasswordActive.value = true
       setTimeout(() => {
         message_status.value = "";
       }, 2500);
