@@ -80,6 +80,7 @@ const messages = {
     referal_link: "Реферальная ссылка",
     referals: "Рефералы",
     registered: "Зарегистрирован",
+    loader_text: 'Ожидайте подтверждения'
   },
   EN: {
     referal: "Referral program",
@@ -162,6 +163,7 @@ const messages = {
     referal_link: "Referral link",
     referals: "Referrals",
     registered: "Registered",
+    loader_text: 'Wait for confirmation'
   },
 };
 

@@ -38,6 +38,7 @@ const aboutUs = ref([
   },
 ]);
 
+
 const referal = ref([
   {
     name: t("email_add_profile"),
@@ -52,6 +53,7 @@ const referal = ref([
     show: true,
   },
 ]);
+
 
 const support = ref([
   {

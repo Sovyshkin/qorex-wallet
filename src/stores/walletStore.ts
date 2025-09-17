@@ -14,6 +14,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const { t } = useI18n();
   const router = useRouter();
   const isLoading = ref(false);
+  const loaderScan = ref(false)
   const email = ref("");
   const code = ref("");
 
@@ -164,12 +165,12 @@ export const useWalletStore = defineStore("wallet", () => {
 
   const createUser = async () => {
     try {
-      console.log(user.value);
+      console.log(userTg.value);
       let response = await axios.post(`/new_user`, {
-        first_name: user.value.first_name,
-        last_name: user.value.last_name,
-        username: user.value.username,
-        tg_id: user.value.tg_id,
+        first_name: userTg.value.first_name,
+        last_name: userTg.value.last_name,
+        username: userTg.value.username,
+        tg_id: userTg.value.id,
       });
       console.log(response);
     } catch (err) {
@@ -329,7 +330,23 @@ export const useWalletStore = defineStore("wallet", () => {
     }
   }
 
+  const qrTake = async (link: string) => {
+    try {
+      loaderScan.value = true
+      let response = await axios.post(`/qr_take?tg_id=${user.value.tg_id}&qr_url=${link}&balance=${balance.value}`, {})
+      console.log(response);
+      if (response.status == 200) {
+        router.push({ name: 'transaction' })
+      }
+    } catch (err) {
+      console.log(err);
+    } finally {
+      loaderScan.value = false
+    }
+  }
+
   return {
+    qrTake,
     getRub,
     goTransaction,
     transaction,
@@ -340,6 +357,7 @@ export const useWalletStore = defineStore("wallet", () => {
     updateEmail,
     email,
     isLoading,
+    loaderScan,
     logOut,
     balance_rub,
     pay_link,

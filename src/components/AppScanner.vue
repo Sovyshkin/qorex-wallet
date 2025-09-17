@@ -1,6 +1,6 @@
 <template>
-  <div class="wrap-load" v-if="isLoading">
-    <AppLoader/>
+  <div class="wrap-load" v-if="walletStore.loaderScan">
+    <LoaderScanner/>
   </div>
   <div class="qr-scanner-fullscreen">
     <!-- Кнопка закрытия -->
@@ -66,16 +66,17 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import jsQR from "jsqr";
-import AppLoader from "./AppLoader.vue";
+import LoaderScanner from "./LoaderScanner.vue";
 import { useI18n } from 'vue-i18n';
+import { useWalletStore } from "@/stores/walletStore";
 
+const walletStore = useWalletStore()
 const { t } = useI18n();
 const router = useRouter();
 const videoElement = ref(null);
 const selectedImage = ref(null);
 const isTorchOn = ref(false);
 const scanResult = ref(null);
-const isLoading = ref(false);
 let stream = null;
 
 
@@ -103,9 +104,7 @@ onBeforeUnmount(() => {
 const manualScan = async () => {
   if (!videoElement.value) return;
 
-  try {
-    isLoading.value = true; // Включаем лоадер перед сканированием
-    
+  try {    
     const canvas = document.createElement("canvas");
     canvas.width = videoElement.value.videoWidth;
     canvas.height = videoElement.value.videoHeight;
@@ -118,23 +117,17 @@ const manualScan = async () => {
     if (code) {
       scanResult.value = code.data;
       console.log("Найден QR-код:", scanResult.value);
-    
       if (isValidUrl(scanResult.value)) {
-        setTimeout(() => {
-          router.go(-1)
-        }, 3000)
+        walletStore.qrTake(scanResult.value)
       } else {
         alert(t('not_a_link'));
-        isLoading.value = false;
       }
     } else {
       alert(t('qr_not_found'));
-      isLoading.value = false;
     }
   } catch (error) {
     console.error("Ошибка сканирования:", error);
     alert(t('scan_error'));
-    isLoading.value = false;
   }
 };
 
@@ -143,14 +136,14 @@ const isValidUrl = (string) => {
   try {
     new URL(string);
     return true;
-  } catch (_) {
+  } catch (err) {
+    console.log(err);
     return false;
   }
 };
 const scanFromImage = () => {
   if (!selectedImage.value) return;
 
-  isLoading.value = true; // Включаем лоадер
 
   const img = new Image();
   
@@ -168,29 +161,24 @@ const scanFromImage = () => {
       if (code) {
         scanResult.value = code.data;
         console.log("Найден QR-код:", scanResult.value);
-        
+        console.log(isValidUrl(scanResult.value));  
         // Проверяем, что это валидный URL
         if (isValidUrl(scanResult.value)) {
-          // Здесь можно выполнить дополнительные действия с найденной ссылкой
-          // Лоадер останется включенным для последующих операций
+          walletStore.qrTake(scanResult.value)
         } else {
           alert(t('qr_no_link'));
-          isLoading.value = false;
         }
       } else {
         alert(t('qr_not_in_image'));
-        isLoading.value = false;
       }
     } catch (error) {
       console.error("Ошибка обработки изображения:", error);
       alert(t('image_process_error'));
-      isLoading.value = false;
     }
   };
 
   img.onerror = function () {
     alert(t('image_load_error'));
-    isLoading.value = false;
   };
 
   img.src = selectedImage.value;
