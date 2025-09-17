@@ -27,7 +27,7 @@ onMounted(async () => {
     <header>
       <div class="user">
         <div class="wrap-avatar">
-          <img :src="walletStore.user.photo_url" alt="" />
+          <img :src="walletStore.userTg.photo_url" alt="" />
         </div>
         <span class="name">{{ walletStore.user.first_name }}</span>
       </div>
