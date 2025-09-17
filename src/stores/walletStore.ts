@@ -370,6 +370,7 @@ export const useWalletStore = defineStore("wallet", () => {
     getPrice,
     getUserInfo,
     user,
+    userTg,
     getUser,
     balance,
     changeLang,
