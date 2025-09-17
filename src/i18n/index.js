@@ -62,9 +62,9 @@ const messages = {
     confirm: "Подтвердить",
     enter_code: "Введите код подтверждения",
     your_code: "Ваш код",
-    buy: "Покупка",
-    withdrawal: "Вывод",
-    deposit: "Пополнение",
+    pay: "Покупка",
+    output: "Вывод",
+    input: "Пополнение",
     error: "Ошибка",
     in_processing: "В обработке",
     success: "Успешно",
@@ -80,7 +80,8 @@ const messages = {
     referal_link: "Реферальная ссылка",
     referals: "Рефералы",
     registered: "Зарегистрирован",
-    loader_text: 'Ожидайте подтверждения'
+    loader_text: 'Ожидайте подтверждения',
+    in_development: 'В разработке'
   },
   EN: {
     referal: "Referral program",
@@ -126,6 +127,7 @@ const messages = {
     create_pincode: "Come up with a PIN code",
     total_balance: "Total balance",
     deposit: "Deposit",
+    pay_out: 'Withdraw',
     send: "Send",
     pay: "To pay",
     documents: "Documents",
@@ -145,9 +147,9 @@ const messages = {
     confirm: "Confirm",
     enter_code: "Enter the confirmation code",
     your_code: "Your code",
-    buy: "Purchase",
-    withdrawal: "Conclusion",
-    deposit: "Replenishment",
+    pay: "Purchase",
+    output: "Conclusion",
+    input: "Replenishment",
     error: "Error",
     in_processing: "In processing",
     success: "Successfully",
@@ -163,7 +165,8 @@ const messages = {
     referal_link: "Referral link",
     referals: "Referrals",
     registered: "Registered",
-    loader_text: 'Wait for confirmation'
+    loader_text: 'Wait for confirmation',
+    in_development: 'In development'
   },
 };
 

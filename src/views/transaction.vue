@@ -1,13 +1,13 @@
 <script setup>
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { ref } from 'vue'
-import { useWalletStore } from '@/stores/walletStore'
+import { ref } from "vue";
+import { useWalletStore } from "@/stores/walletStore";
 
 const { t } = useI18n();
 const router = useRouter();
 const showCopiedNotification = ref(false);
-const walletStore = useWalletStore()
+const walletStore = useWalletStore();
 
 const goBack = () => {
   router.go(-1);
@@ -25,18 +25,17 @@ const copy = (text) => {
 const formatDateTime = (dateInput) => {
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) {
-    console.error('Invalid date:', dateInput);
-    return 'Некорректная дата';
+    console.error("Invalid date:", dateInput);
+    return "Некорректная дата";
   }
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  
-  return `${day}.${month}.${year} ${hours}:${minutes}`;
-}
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
 
+  return `${day}.${month}.${year} ${hours}:${minutes}`;
+};
 </script>
 
 <template>
@@ -63,18 +62,18 @@ const formatDateTime = (dateInput) => {
         <div class="transaction-amounts">
           <span class="amount-usdt"
             >{{
-              walletStore.transaction.type === "buy"
+              walletStore.transaction.type === "pay"
                 ? "-"
-                : walletStore.transaction.type === "withdrawal"
+                : walletStore.transaction.type === "output"
                 ? "-"
                 : "+"
             }}{{ walletStore.transaction.amount }} USDT</span
           >
           <span class="amount-rub"
             >{{
-              walletStore.transaction.type === "buy"
+              walletStore.transaction.type === "pay"
                 ? "-"
-                : walletStore.transaction.type === "withdrawal"
+                : walletStore.transaction.type === "output"
                 ? "-"
                 : "+"
             }}{{ walletStore.transaction.amountRub }} ₽</span
@@ -82,25 +81,39 @@ const formatDateTime = (dateInput) => {
         </div>
       </div>
 
-      <div class="status-badge" :class="walletStore.transaction.status">
+      <!-- <div class="status-badge" :class="walletStore.transaction.status">
         {{ t(walletStore.transaction.status) }}
-      </div>
+      </div> -->
+      <span v-if="item.bool_suecess" class="status-badge success">{{
+        t("success")
+      }}</span>
+      <span v-else class="status-badge in_processing">{{
+        t("in_processing")
+      }}</span>
 
       <div class="transaction-details">
         <div class="detail-item">
           <span class="detail-label">{{ t("date_time") }}:</span>
-          <span class="detail-value">{{ formatDateTime(walletStore.transaction.datatime) }}</span>
+          <span class="detail-value">{{
+            formatDateTime(walletStore.transaction.datatime)
+          }}</span>
         </div>
 
         <div class="detail-item">
           <span class="detail-label">{{ t("transaction_id") }}:</span>
-          <span @click="copy(walletStore.transaction.transactionId)" class="detail-value">{{ walletStore.transaction.transactionId }} <img src="@/assets/copy.svg" alt="copy"</span>
+          <span
+            @click="copy(walletStore.transaction.transactionId)"
+            class="detail-value"
+            >{{ walletStore.transaction.transactionId }} <img
+            src="@/assets/copy.svg" alt="copy"</span
+          >
         </div>
 
         <div class="detail-item">
           <span class="detail-label">{{ t("currency_pair") }}:</span>
           <span class="detail-value">
-            {{ walletStore.transaction.currencyFrom }} / {{ walletStore.transaction.currencyTo }}
+            {{ walletStore.transaction.currencyFrom }} /
+            {{ walletStore.transaction.currencyTo }}
           </span>
         </div>
 
@@ -111,13 +124,18 @@ const formatDateTime = (dateInput) => {
 
         <div class="detail-item">
           <span class="detail-label">{{ t("mcc_code") }}:</span>
-          <span @click="copy(walletStore.transaction.mccCode)" class="detail-value"
-            >{{ walletStore.transaction.mccCode }} <img src="@/assets/copy.svg" alt="copy"
+          <span
+            @click="copy(walletStore.transaction.mccCode)"
+            class="detail-value"
+            >{{ walletStore.transaction.mccCode }}
+            <img src="@/assets/copy.svg" alt="copy"
           /></span>
         </div>
       </div>
       <transition name="fade">
-        <div v-if="showCopiedNotification" class="copied-notification">{{ t('copied') }}</div>
+        <div v-if="showCopiedNotification" class="copied-notification">
+          {{ t("copied") }}
+        </div>
       </transition>
     </div>
   </div>
@@ -207,13 +225,13 @@ h1 {
 }
 
 .error {
-    background-color: rgba(84%, 16%, 16%, 0.1);
-  color: #D62828;
+  background-color: rgba(84%, 16%, 16%, 0.1);
+  color: #d62828;
 }
 
 .in_processing {
-    background-color: rgba(213, 168, 16, 0.1);;
-  color: #D5A810;
+  background-color: rgba(213, 168, 16, 0.1);
+  color: #d5a810;
 }
 
 .transaction-details {

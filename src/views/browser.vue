@@ -1,9 +1,12 @@
 <script setup>
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 </script>
 <template>
     <div class="container">
         <img src="../assets/cat-loader.svg" alt="">
-        В разработке...
+        {{ t('in_development') }}...
     </div>
 </template>
 <style scoped>

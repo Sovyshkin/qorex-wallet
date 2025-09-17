@@ -12,7 +12,7 @@ const walletStore = useWalletStore();
     <main class="container">
         <h1>{{ t('history_tranc') }}</h1>
         <p>{{ t('history_text') }}</p>
-        <button class="btn">
+        <button class="btn" @click="$router.push({ name: 'deposit' })">
             <img src="../assets/add.png" alt="">
             <span>{{ t('deposit_wallet') }}</span>
         </button>
@@ -20,7 +20,7 @@ const walletStore = useWalletStore();
 </template>
 <style scoped>
 .container {
-    height: 90vh;
+    height: 70vh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -47,7 +47,7 @@ p {
 
 .btn {
     width: 100%;
-    background-color: #0373ff;
+    background-color: #DEEC51;
     padding: 15px 0;
     border-radius: 12px;
     display: flex;
@@ -57,7 +57,6 @@ p {
 }
 
 .btn span {
-    color: #fff;
     font-size: 16px;
     font-weight: 600;
 }

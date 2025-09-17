@@ -3,11 +3,11 @@ import EmptyHistory from "@/components/EmptyHistory.vue";
 import { useWalletStore } from "@/stores/walletStore";
 import { useI18n } from "vue-i18n";
 import { ref, computed, onMounted } from "vue";
-import { useRouter } from 'vue-router'
+import { useRouter } from "vue-router";
 
 const walletStore = useWalletStore();
 const { t } = useI18n();
-const router = useRouter()
+const router = useRouter();
 
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString("ru-RU", {
@@ -17,50 +17,32 @@ const formatDate = (date) => {
 };
 
 const groupedHistory = computed(() => {
-  const groups = {};
-  walletStore.history.forEach((item) => {
-    const dateKey = formatDate(item.datatime);
-    if (!groups[dateKey]) {
-      groups[dateKey] = [];
-    }
-    groups[dateKey].push(item);
-  });
-  return groups;
+  try {
+    const groups = {};
+    console.log(walletStore.history);
+
+    walletStore.history.forEach((item) => {
+      const dateKey = formatDate(Number(item.datatime));
+      
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(item);
+    });
+    return groups;
+  } catch (err) {
+    console.log(err);
+  }
 });
-
-const getStatusText = (status) => {
-  switch (status) {
-    case "success":
-      return "Успешно";
-    case "in_processing":
-      return "в обработке";
-    case "error":
-      return "Ошибка";
-    default:
-      return status;
-  }
-};
-
-const getTypeText = (type) => {
-  switch (type) {
-    case "buy":
-      return "Покупка";
-    case "deposit":
-      return "Пополнение";
-    case "withdrawal":
-      return "Вывод";
-    default:
-      return type;
-  }
-};
 
 const getCurrencySymbol = (type) => {
   return type === "buy" ? "₽" : "USDT";
 };
 
 onMounted(async () => {
-  await walletStore.getPrice()
-}) 
+  await walletStore.getPrice();
+  console.log(walletStore.history);
+});
 </script>
 
 <template>
@@ -68,31 +50,42 @@ onMounted(async () => {
     <h1>{{ t("history_tranc") }}</h1>
   </header>
   <div class="history">
-    <template v-if="walletStore.history.length > 0">
+    <template v-if="walletStore.history.length">
       <div
         v-for="(items, date) in groupedHistory"
         :key="date"
         class="history-group"
       >
         <h2 class="history-date">{{ date }}</h2>
-        <div v-for="(item, index) in items" :key="index" class="history-item" @click="walletStore.goTransaction(item)">
+        <div
+          v-for="(item, index) in items"
+          :key="index"
+          class="history-item"
+          @click="walletStore.goTransaction(item)"
+        >
           <div class="history-info">
             <div class="wrap-img">
-              <img :src="`/assets/type-${item.type}.svg`" alt="transaction-type" />
+              <img
+                :src="`/assets/type-${item.type_trans}.svg`"
+                alt="transaction-type"
+              />
             </div>
             <div class="history-more-info">
-              <span class="history-type">{{ t(item.type) }}</span>
-              <span class="history-status" :class="item.status">{{
-                t(item.status)
+              <span class="history-type">{{ t(item.type_trans) }}</span>
+              <span v-if="item.bool_suecess" class="history-status success">{{
+                t("success")
+              }}</span>
+              <span v-else class="history-status in_processing">{{
+                t("in_processing")
               }}</span>
             </div>
           </div>
           <div class="history-count">
             <span class="count-usdt" v-if="!walletStore.hideBalanceActive">
               {{
-                item.type === "buy"
+                item.type_trans === "buy"
                   ? "-"
-                  : item.type === "withdrawal"
+                  : item.type_trans === "output"
                   ? "-"
                   : "+"
               }}
@@ -101,9 +94,9 @@ onMounted(async () => {
             <span class="count-usdt" v-else>********</span>
             <span class="count-rub" v-if="!walletStore.hideBalanceActive">
               {{
-                item.type === "buy"
+                item.type_trans === "buy"
                   ? "-"
-                  : item.type === "withdrawal"
+                  : item.type_trans === "output"
                   ? "-"
                   : "+"
               }}
@@ -195,7 +188,6 @@ h1 {
   width: 24px;
 }
 
-
 .history-more-info {
   display: flex;
   flex-direction: column;
@@ -233,14 +225,14 @@ h1 {
 }
 
 .error {
-  color: #D62828;
+  color: #d62828;
 }
 
 .success {
-  color: #4BAB6B;
+  color: #4bab6b;
 }
 
 .in_processing {
-  color: #D5A810;
+  color: #d5a810;
 }
 </style>

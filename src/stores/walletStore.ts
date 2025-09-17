@@ -14,18 +14,18 @@ export const useWalletStore = defineStore("wallet", () => {
   const { t } = useI18n();
   const router = useRouter();
   const isLoading = ref(false);
-  const loaderScan = ref(false)
+  const loaderScan = ref(false);
   const email = ref("");
   const code = ref("");
 
   const message_status = ref("");
-  // const userTg = ref({
-  //   first_name: "Вадим",
-  //   last_name: "Заньков",
-  //   username: "zankov_22",
-  //   id: "978664527",
-  // });
-  const userTg = ref({})
+  // const userTg = ref({})
+  const userTg = ref({
+    first_name: "Вадим",
+    last_name: "Заньков",
+    username: "zankov_22",
+    id: "978664527",
+  });
   const user = ref({});
   const amount = ref("");
   const pay_link = ref("");
@@ -33,52 +33,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const hideBalanceActive = ref(false);
   const pinCode = ref("");
 
-  const history = ref([
-    {
-      type: "buy",
-      status: "success",
-      amount: "3000",
-      datatime: new Date(),
-      transactionId: "d2tg4d72tgg6dfg...",
-      currencyFrom: "USDT",
-      currencyTo: "RUB",
-      seller: "CodeRed-Team",
-      mccCode: "1234",
-    },
-    {
-      type: "deposit",
-      status: "success",
-      amount: "48.01",
-      datatime: new Date(),
-      transactionId: "d2tg4d72tgg6dfg...",
-      currencyFrom: "USDT",
-      currencyTo: "RUB",
-      seller: "CodeRed-Team",
-      mccCode: "1234",
-    },
-    {
-      type: "withdrawal",
-      status: "in_processing",
-      amount: "48.01",
-      datatime: new Date(),
-      transactionId: "d2tg4d72tgg6dfg...",
-      currencyFrom: "USDT",
-      currencyTo: "RUB",
-      seller: "CodeRed-Team",
-      mccCode: "1234",
-    },
-    {
-      type: "withdrawal",
-      status: "error",
-      amount: "48.01",
-      datatime: new Date(),
-      transactionId: "d2tg4d72tgg6dfg...",
-      currencyFrom: "USDT",
-      currencyTo: "RUB",
-      seller: "CodeRed-Team",
-      mccCode: "1234",
-    },
-  ]);
+  const history = ref([]);
 
   const transaction = ref({});
 
@@ -94,7 +49,7 @@ export const useWalletStore = defineStore("wallet", () => {
     if (response.status == 200) {
       Cookies.set("pinCode", pin, { expires: 365 });
       message_status.value = "success";
-      codePasswordActive.value = true
+      codePasswordActive.value = true;
       setTimeout(() => {
         message_status.value = "";
       }, 2500);
@@ -186,7 +141,11 @@ export const useWalletStore = defineStore("wallet", () => {
       user.value = response.data;
       balance.value = response.data.balance || 0;
       pinCode.value = response.data.pin_code;
+      history.value = response.data.list_transctions_replenished;
       if (usdt_price.value) {
+        balance_rub.value = balance.value * usdt_price.value;
+      } else {
+        await getPrice();
         balance_rub.value = balance.value * usdt_price.value;
       }
       console.log(balance.value);
@@ -314,7 +273,7 @@ export const useWalletStore = defineStore("wallet", () => {
 
   const goTransaction = async (item) => {
     try {
-      await getPrice()
+      await getPrice();
       transaction.value = { ...item };
       transaction.value.amountRub = getRub(item.amount);
       router.push({ name: "transaction" });
@@ -325,26 +284,29 @@ export const useWalletStore = defineStore("wallet", () => {
 
   const getRub = (amount) => {
     try {
-      return `${Math.round(amount * usdt_price.value * 100) / 100}`
+      return `${Math.round(amount * usdt_price.value * 100) / 100}`;
     } catch (err) {
       console.log(err);
     }
-  }
+  };
 
   const qrTake = async (link: string) => {
     try {
-      loaderScan.value = true
-      let response = await axios.post(`/qr_take?tg_id=${user.value.tg_id}&qr_url=${link}&balance=${balance.value}`, {})
+      loaderScan.value = true;
+      let response = await axios.post(
+        `/qr_take?tg_id=${user.value.tg_id}&qr_url=${link}&balance=${balance.value}`,
+        {}
+      );
       console.log(response);
       if (response.status == 200) {
-        router.push({ name: 'transaction' })
+        router.push({ name: "transaction" });
       }
     } catch (err) {
       console.log(err);
     } finally {
-      loaderScan.value = false
+      loaderScan.value = false;
     }
-  }
+  };
 
   return {
     qrTake,
