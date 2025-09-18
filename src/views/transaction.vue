@@ -47,7 +47,7 @@ const formatDateTime = (dateInput) => {
         alt=""
         @click="goBack()"
       />
-      <h1>{{ t(walletStore.transaction.type) }}</h1>
+      <h1>{{ t(walletStore.transaction.type_trans) }}</h1>
       <div class="emp"></div>
     </header>
 
@@ -55,25 +55,25 @@ const formatDateTime = (dateInput) => {
       <div class="transaction-header">
         <div class="wrap-img">
           <img
-            :src="`/assets/type-${walletStore.transaction.type}.svg`"
+            :src="`/assets/type-${walletStore.transaction.type_trans}.svg`"
             alt="transaction-type"
           />
         </div>
         <div class="transaction-amounts">
           <span class="amount-usdt"
             >{{
-              walletStore.transaction.type === "pay"
+              walletStore.transaction.type_trans === "buy"
                 ? "-"
-                : walletStore.transaction.type === "output"
+                : walletStore.transaction.type_trans === "output"
                 ? "-"
                 : "+"
             }}{{ walletStore.transaction.amount }} USDT</span
           >
           <span class="amount-rub"
             >{{
-              walletStore.transaction.type === "pay"
+              walletStore.transaction.type_trans === "buy"
                 ? "-"
-                : walletStore.transaction.type === "output"
+                : walletStore.transaction.type_trans === "output"
                 ? "-"
                 : "+"
             }}{{ walletStore.transaction.amountRub }} ₽</span
@@ -84,7 +84,7 @@ const formatDateTime = (dateInput) => {
       <!-- <div class="status-badge" :class="walletStore.transaction.status">
         {{ t(walletStore.transaction.status) }}
       </div> -->
-      <span v-if="item.bool_suecess" class="status-badge success">{{
+      <span v-if="walletStore.transaction.bool_suecess" class="status-badge success">{{
         t("success")
       }}</span>
       <span v-else class="status-badge in_processing">{{
@@ -99,12 +99,21 @@ const formatDateTime = (dateInput) => {
           }}</span>
         </div>
 
-        <div class="detail-item">
+        <div class="detail-item" v-if="walletStore.transaction.type_trans == 'input'">
           <span class="detail-label">{{ t("transaction_id") }}:</span>
           <span
-            @click="copy(walletStore.transaction.transactionId)"
+            @click="copy(walletStore.transaction.working_invoce)"
             class="detail-value"
-            >{{ walletStore.transaction.transactionId }} <img
+            >{{ walletStore.transaction.working_invoce }} <img
+            src="@/assets/copy.svg" alt="copy"</span
+          >
+        </div>
+        <div class="detail-item" v-else>
+          <span class="detail-label">{{ t("transaction_id") }}:</span>
+          <span
+            @click="copy(walletStore.transaction.id)"
+            class="detail-value"
+            >{{ walletStore.transaction.id }} <img
             src="@/assets/copy.svg" alt="copy"</span
           >
         </div>
@@ -112,17 +121,17 @@ const formatDateTime = (dateInput) => {
         <div class="detail-item">
           <span class="detail-label">{{ t("currency_pair") }}:</span>
           <span class="detail-value">
-            {{ walletStore.transaction.currencyFrom }} /
-            {{ walletStore.transaction.currencyTo }}
+            USDT /
+            RUB
           </span>
         </div>
 
         <div class="detail-item">
           <span class="detail-label">{{ t("seller") }}:</span>
-          <span class="detail-value">{{ walletStore.transaction.seller }}</span>
+          <span class="detail-value">Garda Wallet</span>
         </div>
 
-        <div class="detail-item">
+        <!-- <div class="detail-item">
           <span class="detail-label">{{ t("mcc_code") }}:</span>
           <span
             @click="copy(walletStore.transaction.mccCode)"
@@ -130,7 +139,7 @@ const formatDateTime = (dateInput) => {
             >{{ walletStore.transaction.mccCode }}
             <img src="@/assets/copy.svg" alt="copy"
           /></span>
-        </div>
+        </div> -->
       </div>
       <transition name="fade">
         <div v-if="showCopiedNotification" class="copied-notification">

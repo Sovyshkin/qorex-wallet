@@ -276,6 +276,8 @@ export const useWalletStore = defineStore("wallet", () => {
       await getPrice();
       transaction.value = { ...item };
       transaction.value.amountRub = getRub(item.amount);
+      console.log(transaction.value);
+      
       router.push({ name: "transaction" });
     } catch (err) {
       console.log(err);

@@ -19,11 +19,10 @@ const formatDate = (date) => {
 const groupedHistory = computed(() => {
   try {
     const groups = {};
-    console.log(walletStore.history);
 
     walletStore.history.forEach((item) => {
-      const dateKey = formatDate(Number(item.datatime));
-      
+      const dateKey = formatDate(item.datatime);
+
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
@@ -34,6 +33,33 @@ const groupedHistory = computed(() => {
     console.log(err);
   }
 });
+
+const historyTest = ref([
+  {
+    id: 2,
+    user: "zankov_22",
+    datatime: "2025-08-05T11:23:22.158Z",
+    amount: "5",
+    users_id: "978664527",
+    referal: false,
+    whoreferal: null,
+    working_invoce: "P5OEKQGY",
+    bool_suecess: null,
+    type_trans: 'buy',
+  },
+  {
+    id: 3,
+    user: "zankov_22",
+    datatime: "2025-08-06T08:54:37.717Z",
+    amount: "5",
+    users_id: "978664527",
+    referal: false,
+    whoreferal: null,
+    working_invoce: "H72T80NB",
+    bool_suecess: true,
+    type_trans: 'input',
+  },
+]);
 
 const getCurrencySymbol = (type) => {
   return type === "buy" ? "₽" : "USDT";
