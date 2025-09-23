@@ -81,7 +81,8 @@ const messages = {
     referals: "Рефералы",
     registered: "Зарегистрирован",
     loader_text: 'Ожидайте подтверждения',
-    in_development: 'В разработке'
+    in_development: 'В разработке',
+    wrong_pin: "Неверный PIN-код. Попробуйте снова."
   },
   EN: {
     referal: "Referral program",
@@ -166,7 +167,8 @@ const messages = {
     referals: "Referrals",
     registered: "Registered",
     loader_text: 'Wait for confirmation',
-    in_development: 'In development'
+    in_development: 'In development',
+    wrong_pin: "Invalid PIN code. Try again."
   },
 };
 

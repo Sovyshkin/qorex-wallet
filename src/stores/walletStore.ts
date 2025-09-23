@@ -42,20 +42,22 @@ export const useWalletStore = defineStore("wallet", () => {
   };
 
   const setPinCode = async (pin: string) => {
-    pinCode.value = pin;
-    let response = await axios.patch(`/update_pincode/${user.value.tg_id}`, {
-      pincode: pinCode.value,
-    });
-    if (response.status == 200) {
-      Cookies.set("pinCode", pin, { expires: 365 });
-      message_status.value = "success";
-      codePasswordActive.value = true;
-      setTimeout(() => {
-        message_status.value = "";
-      }, 2500);
-    }
-    console.log(response);
-  };
+  pinCode.value = pin;
+  let response = await axios.patch(`/update_pincode/${user.value.tg_id}`, {
+    pincode: pinCode.value,
+  });
+  if (response.status == 200) {
+    Cookies.set("pinCode", pin, { expires: 365 });
+    localStorage.setItem('hasPinCode', 'true');
+    localStorage.setItem('pinVerified', Date.now().toString()); // Автоматически верифицируем
+    message_status.value = "success";
+    codePasswordActive.value = true;
+    setTimeout(() => {
+      message_status.value = "";
+    }, 2500);
+  }
+  console.log(response);
+};
 
   const verifyPin = (enteredPin: string) => {
     return enteredPin == pinCode.value;
@@ -64,6 +66,26 @@ export const useWalletStore = defineStore("wallet", () => {
   const hasPinCode = () => {
     return !!pinCode.value;
   };
+
+  const verifyAndStorePin = (enteredPin: string) => {
+  if (verifyPin(enteredPin)) {
+    // Сохраняем время успешного ввода PIN
+    localStorage.setItem('pinVerified', Date.now().toString());
+    localStorage.setItem('hasPinCode', 'true');
+    return true;
+  }
+  return false;
+};
+
+const clearPinSession = () => {
+  localStorage.removeItem('pinVerified');
+};
+
+const initializePinState = () => {
+  if (pinCode.value) {
+    localStorage.setItem('hasPinCode', 'true');
+  }
+};
 
   const savedLang = localStorage.getItem("lang") || "RU";
   i18n.global.locale = savedLang;
@@ -347,6 +369,9 @@ export const useWalletStore = defineStore("wallet", () => {
     hasPinCode,
     setHideBalanceActive,
     setPinCode,
+    verifyAndStorePin,
+    clearPinSession,
+    initializePinState,
     createUser,
   };
 });

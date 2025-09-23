@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import NavBar from './components/NavBar.vue';
 import AppLoader from './components/AppLoader.vue';
@@ -9,39 +9,116 @@ import { useWalletStore } from '@/stores/walletStore.ts'
 const router = useRouter();
 const walletStore = useWalletStore()
 
-router.beforeEach((to, from, next) => {
+// Функция для проверки необходимости ввода PIN
+const requirePin = () => {
+  const pinVerified = localStorage.getItem('pinVerified')
+  const hasPinCode = localStorage.getItem('hasPinCode') === 'true' || walletStore.hasPinCode()
+  
+  // Если PIN-код установлен и не был верифицирован в течение сессии
+  if (hasPinCode && !pinVerified) {
+    return true
+  }
+  
+  // Проверяем, не истекло ли время сессии (например, 30 минут)
+  if (pinVerified) {
+    const verificationTime = parseInt(pinVerified)
+    const currentTime = Date.now()
+    const sessionTimeout = 30 * 60 * 1000 // 30 минут
+    
+    if (currentTime - verificationTime > sessionTimeout) {
+      localStorage.removeItem('pinVerified')
+      return true
+    }
+  }
+  
+  return false
+}
+
+// Список маршрутов, которые не требуют PIN-кода
+const publicRoutes = ['EnterPin', 'CreatePin'];
+
+router.beforeEach(async (to, from, next) => {
   walletStore.isLoading = true;
   
-  if (to.meta.requiresPin && !walletStore.isPinVerified.value) {
-    walletStore.isLoading = false;
-    return next({ name: 'EnterPin' });
-  }
-  
-  if (to.name === 'CreatePin' && walletStore.hasPinCode()) {
-    walletStore.isLoading = false;
-    return next({ name: 'EnterPin' });
-  }
+  try {
+    // Если пользователь еще не загружен, загружаем его данные
+    if (!walletStore.user.tg_id) {
+      await walletStore.getUserInfo();
+      if (walletStore.userTg.value.id) {
+        await walletStore.getUser();
+      }
+    }
 
-  // if (walletStore.codePasswordActive && !walletStore.isPinVerified && to.name !== 'pin-code') {
-  //   isLoading.value = false;
-  //   return next({ name: 'pin-code' });
-  // }
-  
-  next();
-  
-  setTimeout(() => {
-    walletStore.isLoading = false;
-  }, 500);
+    // Проверяем, является ли маршрут публичным
+    const isPublicRoute = publicRoutes.includes(to.name);
+    
+    // Если маршрут не публичный и требуется ввод PIN-кода
+    if (!isPublicRoute && requirePin()) {
+      // Если у пользователя еще нет PIN-кода, перенаправляем на создание
+      if (!walletStore.hasPinCode()) {
+        walletStore.isLoading = false;
+        return next({ name: 'CreatePin' });
+      } else {
+        // Если PIN-код есть, но не верифицирован - перенаправляем на ввод
+        walletStore.isLoading = false;
+        return next({ 
+          name: 'EnterPin', 
+          query: { returnTo: to.fullPath } 
+        });
+      }
+    }
+
+    // Блокируем доступ к созданию PIN-кода если он уже установлен
+    if (to.name === 'CreatePin' && walletStore.hasPinCode() && !requirePin()) {
+      walletStore.isLoading = false;
+      return next({ name: 'Home' }); // или на главную страницу
+    }
+
+    next();
+  } catch (error) {
+    console.error('Navigation error:', error);
+    next();
+  } finally {
+    setTimeout(() => {
+      walletStore.isLoading = false;
+    }, 500);
+  }
 });
 
-onMounted(() => {
+// Функция для инициализации приложения
+const initializeApp = async () => {
   try {
-    walletStore.getUserInfo()
-  } catch (err) {
-    console.log(err);
+    walletStore.getUserInfo();
     
+    // Если это Telegram Web App, создаем/получаем пользователя
+    if (window.Telegram && window.Telegram.WebApp) {
+      if (walletStore.userTg.value.id) {
+        await walletStore.getUser();
+        
+        // Проверяем наличие PIN-кода при загрузке приложения
+        if (walletStore.hasPinCode() && requirePin()) {
+          // Если требуется PIN, перенаправляем на страницу ввода
+          router.push({ 
+            name: 'EnterPin', 
+            query: { returnTo: router.currentRoute.value.fullPath } 
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('App initialization error:', err);
   }
-})
+}
+
+onMounted(() => {
+  initializeApp();
+});
+
+// Компьютед свойство для отображения контента (исключая страницы PIN-кода)
+const showContent = computed(() => {
+  const currentRoute = router.currentRoute.value;
+  return !publicRoutes.includes(currentRoute.name);
+});
 </script>
 
 <template>
@@ -50,15 +127,29 @@ onMounted(() => {
     <div class="wrap-load" v-if="walletStore.isLoading">
       <AppLoader/>
     </div>
-    <router-view v-else v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <template v-else>
+      <!-- Отображаем страницы PIN-кода без навбара -->
+      <template v-if="!showContent">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </template>
+      
+      <!-- Отображаем основной контент с навбаром -->
+      <template v-else>
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+        <footer>
+          <NavBar />
+        </footer>
+      </template>
+    </template>
   </main>
-  <footer>
-    <NavBar />
-  </footer>
 </template>
 
 <style>
@@ -192,6 +283,7 @@ button::-moz-focus-inner {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 100vh;
 }
 
 .vue-devtools__panel {
@@ -200,5 +292,13 @@ button::-moz-focus-inner {
 
 h1 {
   text-align: center;
+}
+
+/* Стили для страниц PIN-кода */
+.pin-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 </style>

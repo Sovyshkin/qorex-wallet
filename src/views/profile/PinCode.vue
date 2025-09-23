@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useWalletStore } from "../../stores/walletStore.ts";
 import { useRouter, useRoute } from 'vue-router';
@@ -11,6 +11,7 @@ const route = useRoute()
 
 const pin = ref("");
 const pressedButton = ref(null);
+const errorMessage = ref("");
 
 // Определяем режим работы на основе наличия PIN-кода
 const isCreateMode = route.query.createMode || false
@@ -18,6 +19,7 @@ const isCreateMode = route.query.createMode || false
 const handleNumberClick = (num) => {
   if (pin.value.length < 4) {
     pin.value += num.toString();
+    errorMessage.value = ""; // Сбрасываем ошибку при новом вводе
   }
 
   if (pin.value.length === 4) {
@@ -26,8 +28,13 @@ const handleNumberClick = (num) => {
       router.push({ name: 'safety' });
     } else {
       if (walletStore.verifyPin(pin.value)) {
-        router.go(-1);
+        // Сохраняем время успешного ввода PIN
+        localStorage.setItem('pinVerified', Date.now().toString());
+        // Возвращаемся назад или на главную страницу
+        const returnTo = route.query.returnTo || '/';
+        router.push(returnTo);
       } else {
+        errorMessage.value = t('wrong_pin');
         pin.value = "";
       }
     }
@@ -37,6 +44,7 @@ const handleNumberClick = (num) => {
 const handleDeleteClick = () => {
   if (pin.value.length > 0) {
     pin.value = pin.value.slice(0, -1);
+    errorMessage.value = ""; // Сбрасываем ошибку при удалении
   }
 };
 
@@ -47,18 +55,22 @@ const startPress = (num) => {
 const endPress = () => {
   pressedButton.value = null;
 };
+
+// Если пользователь пытается уйти без ввода PIN, блокируем навигацию
+onMounted(() => {
+  if (!isCreateMode) {
+    // Запрещаем возврат без ввода PIN
+    window.history.pushState(null, null, window.location.href);
+    window.onpopstate = function() {
+      window.history.pushState(null, null, window.location.href);
+    };
+  }
+});
 </script>
 
 <template>
   <header class="header">
-    <img
-      class="arrow"
-      src="../../assets/arrow-left.png"
-      alt=""
-      v-if="isCreateMode"
-      @click="walletStore.goBack()"
-    />
-    <div class="emp" v-else></div>
+    <div class="emp"></div> <!-- Убираем кнопку назад при вводе PIN -->
     <h1>{{ isCreateMode ? t('create_pincode') : t('enter_pincode') }}</h1>
     <div class="emp"></div>
   </header>
@@ -70,6 +82,10 @@ const endPress = () => {
         class="pin-dot"
         :class="{ active: pin.length >= i }"
       ></div>
+    </div>
+
+    <div v-if="errorMessage" class="error-message">
+      {{ errorMessage }}
     </div>
 
     <div class="pin-grid">
@@ -86,7 +102,7 @@ const endPress = () => {
         {{ num }}
       </button>
       
-      <div class="empty-cell"></div> <!-- Пустая ячейка для симметрии -->
+      <div class="empty-cell"></div>
       
       <button
         class="pin-button"
@@ -124,8 +140,8 @@ const endPress = () => {
   gap: 20px;
 }
 
-.arrow {
-  height: 18px;
+.emp {
+  width: 18px; /* Сохраняем симметрию */
 }
 
 h1 {
@@ -160,6 +176,12 @@ h1 {
 .pin-dot.active {
   background-color: #DEEC51;
   transform: scale(1.2);
+}
+
+.error-message {
+  color: #ff4444;
+  margin-bottom: 20px;
+  font-size: 14px;
 }
 
 .pin-grid {
