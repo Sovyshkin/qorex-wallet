@@ -99,7 +99,7 @@ const initializeApp = async () => {
         if (walletStore.hasPinCode() && requirePin()) {
           // Если требуется PIN, перенаправляем на страницу ввода
           router.push({ 
-            name: 'EnterPin', 
+            name: 'enterPin', 
             query: { returnTo: router.currentRoute.value.fullPath } 
           });
         }
