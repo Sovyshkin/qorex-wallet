@@ -92,7 +92,7 @@ const initializeApp = async () => {
     
     // Если это Telegram Web App, создаем/получаем пользователя
     if (window.Telegram && window.Telegram.WebApp) {
-      if (walletStore.userTg.value.id) {
+      if (walletStore.userTg.id) {
         await walletStore.getUser();
         
         // Проверяем наличие PIN-кода при загрузке приложения
