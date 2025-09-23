@@ -126,7 +126,7 @@ export const useWalletStore = defineStore("wallet", () => {
         first_name: userTg.value.first_name,
         last_name: userTg.value.last_name,
         username: userTg.value.username,
-        tg_id: userTg.value.id,
+        tg_id: String(userTg.value.id),
       });
       console.log(response);
     } catch (err) {
