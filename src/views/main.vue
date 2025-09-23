@@ -25,7 +25,6 @@ onMounted(async () => {
 <template>
   <div class="wrapper">
     <header>
-      {{ walletStore.userTg }}
       <div class="user">
         <div class="wrap-avatar">
           <img :src="walletStore.userTg.photo_url" alt="" />
