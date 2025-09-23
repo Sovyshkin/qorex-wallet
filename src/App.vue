@@ -152,11 +152,6 @@ const debugInfo = computed(() => {
   <main class="wrapper">
     <AppMessage/>
     
-    <!-- Отладочная информация (можно удалить после отладки) -->
-    <div v-if="false" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; z-index: 10000; font-size: 12px;">
-      <pre>{{ debugInfo }}</pre>
-    </div>
-    
     <div class="wrap-load" v-if="walletStore.isLoading">
       <AppLoader/>
     </div>

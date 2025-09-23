@@ -92,12 +92,19 @@ onMounted(async () => {
           <div class="history-info">
             <div class="wrap-img">
               <img
+              v-if="item.type_trans"
                 :src="`/assets/type-${item.type_trans}.svg`"
+                alt="transaction-type"
+              />
+              <img
+              v-else
+                :src="`/assets/type-buy.svg`"
                 alt="transaction-type"
               />
             </div>
             <div class="history-more-info">
-              <span class="history-type">{{ t(item.type_trans) }}</span>
+              <span class="history-type" v-if="item.type_trans">{{ t(item.type_trans) }}</span>
+               <span class="history-type" v-else>{{ t('buy') }}</span>
               <span v-if="item.bool_suecess" class="history-status success">{{
                 t("success")
               }}</span>

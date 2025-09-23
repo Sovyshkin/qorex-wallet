@@ -89,6 +89,11 @@ const router = createRouter({
       component: () => import("../views/email/enter_code.vue"),
       name: "enter_code",
     },
+    {
+      path: "/failed_payment",
+      component: () => import("../views/transaction_failed.vue"),
+      name: "transaction_failed",
+    },
   ],
 });
 

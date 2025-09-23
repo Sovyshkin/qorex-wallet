@@ -75,14 +75,17 @@ const messages = {
     seller: "Продавец",
     mcc_code: "MCC-код",
     copied: "Скопировано",
-    earn_up_to_15: 'Зарабатывай до <span style="color: #DEEC51; font-size: 26px; font-weight: 700;">15%</span> комиссионных',
+    earn_up_to_15:
+      'Зарабатывай до <span style="color: #DEEC51; font-size: 26px; font-weight: 700;">15%</span> комиссионных',
     referal_code: "Реферальный код",
     referal_link: "Реферальная ссылка",
     referals: "Рефералы",
     registered: "Зарегистрирован",
-    loader_text: 'Ожидайте подтверждения',
-    in_development: 'В разработке',
-    wrong_pin: "Неверный PIN-код. Попробуйте снова."
+    loader_text: "Ожидайте подтверждения",
+    in_development: "В разработке",
+    wrong_pin: "Неверный PIN-код. Попробуйте снова.",
+    failed_payment: "Ошибка транзакции",
+    failed_text: "Попробуйте снова",
   },
   EN: {
     referal: "Referral program",
@@ -128,7 +131,7 @@ const messages = {
     create_pincode: "Come up with a PIN code",
     total_balance: "Total balance",
     deposit: "Deposit",
-    pay_out: 'Withdraw',
+    pay_out: "Withdraw",
     send: "Send",
     pay: "To pay",
     documents: "Documents",
@@ -166,9 +169,11 @@ const messages = {
     referal_link: "Referral link",
     referals: "Referrals",
     registered: "Registered",
-    loader_text: 'Wait for confirmation',
-    in_development: 'In development',
-    wrong_pin: "Invalid PIN code. Try again."
+    loader_text: "Wait for confirmation",
+    in_development: "In development",
+    wrong_pin: "Invalid PIN code. Try again.",
+    failed_payment: "Transaction error",
+    failed_text: "Try again",
   },
 };
 
