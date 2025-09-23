@@ -61,6 +61,8 @@ export const useWalletStore = defineStore("wallet", () => {
 };
 
   const verifyPin = (enteredPin: string) => {
+    pinCode.value = Cookies.get('pinCode')
+    
     return enteredPin == pinCode.value;
   };
 

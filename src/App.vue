@@ -19,7 +19,7 @@ const requirePin = () => {
     return true
   }
   
-  // Проверяем, не истекло ли время сессии (например, 5 минут)
+  // Проверяем, не истекло ли время сессии (5 минут)
   if (pinVerified) {
     const verificationTime = parseInt(pinVerified)
     const currentTime = Date.now()
@@ -35,7 +35,7 @@ const requirePin = () => {
 }
 
 // Список маршрутов, которые не требуют PIN-кода
-const publicRoutes = ['EnterPin', 'CreatePin'];
+const publicRoutes = ['enterPin', 'createPin']; // Исправлено: имена маршрутов в нижнем регистре
 
 router.beforeEach(async (to, from, next) => {
   walletStore.isLoading = true;
@@ -44,7 +44,8 @@ router.beforeEach(async (to, from, next) => {
     // Если пользователь еще не загружен, загружаем его данные
     if (!walletStore.user.tg_id) {
       await walletStore.getUserInfo();
-      if (walletStore.userTg.value.id) {
+      // Исправлено: правильное обращение к userTg
+      if (walletStore.userTg && walletStore.userTg.id) {
         await walletStore.getUser();
       }
     }
@@ -52,28 +53,34 @@ router.beforeEach(async (to, from, next) => {
     // Проверяем, является ли маршрут публичным
     const isPublicRoute = publicRoutes.includes(to.name);
     
+    console.log('Navigation:', to.name, 'isPublic:', isPublicRoute, 'requirePin:', requirePin());
+    
     // Если маршрут не публичный и требуется ввод PIN-кода
     if (!isPublicRoute && requirePin()) {
       // Если у пользователя еще нет PIN-кода, перенаправляем на создание
       if (!walletStore.hasPinCode()) {
+        console.log('Redirecting to createPin - no PIN code');
         walletStore.isLoading = false;
-        return next({ name: 'CreatePin' });
+        return next({ name: 'createPin' });
       } else {
         // Если PIN-код есть, но не верифицирован - перенаправляем на ввод
+        console.log('Redirecting to enterPin - PIN verification required');
         walletStore.isLoading = false;
         return next({ 
-          name: 'EnterPin', 
+          name: 'enterPin', 
           query: { returnTo: to.fullPath } 
         });
       }
     }
 
     // Блокируем доступ к созданию PIN-кода если он уже установлен
-    if (to.name === 'CreatePin' && walletStore.hasPinCode() && !requirePin()) {
+    if (to.name === 'createPin' && walletStore.hasPinCode() && !requirePin()) {
+      console.log('Redirecting to home - PIN already exists');
       walletStore.isLoading = false;
-      return next({ name: 'Home' }); // или на главную страницу
+      return next({ name: 'home' });
     }
 
+    console.log('Allowing navigation to:', to.name);
     next();
   } catch (error) {
     console.error('Navigation error:', error);
@@ -92,16 +99,20 @@ const initializeApp = async () => {
     
     // Если это Telegram Web App, создаем/получаем пользователя
     if (window.Telegram && window.Telegram.WebApp) {
-      if (walletStore.userTg.id) {
+      // Исправлено: правильное обращение к userTg
+      if (walletStore.userTg && walletStore.userTg.id) {
         await walletStore.getUser();
         
         // Проверяем наличие PIN-кода при загрузке приложения
         if (walletStore.hasPinCode() && requirePin()) {
+          console.log('App init: PIN required, redirecting to enterPin');
           // Если требуется PIN, перенаправляем на страницу ввода
           router.push({ 
             name: 'enterPin', 
             query: { returnTo: router.currentRoute.value.fullPath } 
           });
+        } else {
+          console.log('App init: PIN not required or not set');
         }
       }
     }
@@ -111,30 +122,55 @@ const initializeApp = async () => {
 }
 
 onMounted(() => {
+  console.log('App mounted');
   initializeApp();
 });
 
 // Компьютед свойство для отображения контента (исключая страницы PIN-кода)
 const showContent = computed(() => {
   const currentRoute = router.currentRoute.value;
-  return !publicRoutes.includes(currentRoute.name);
+  const shouldShow = !publicRoutes.includes(currentRoute.name);
+  console.log('Show content:', shouldShow, 'for route:', currentRoute.name);
+  return shouldShow;
+});
+
+// Добавляем отладочную информацию
+const debugInfo = computed(() => {
+  return {
+    currentRoute: router.currentRoute.value.name,
+    hasPinCode: walletStore.hasPinCode(),
+    pinVerified: localStorage.getItem('pinVerified'),
+    requirePin: requirePin(),
+    showContent: showContent.value,
+    userTg: walletStore.userTg,
+    user: walletStore.user
+  };
 });
 </script>
 
 <template>
   <main class="wrapper">
     <AppMessage/>
+    
+    <!-- Отладочная информация (можно удалить после отладки) -->
+    <div v-if="false" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; z-index: 10000; font-size: 12px;">
+      <pre>{{ debugInfo }}</pre>
+    </div>
+    
     <div class="wrap-load" v-if="walletStore.isLoading">
       <AppLoader/>
     </div>
+    
     <template v-else>
       <!-- Отображаем страницы PIN-кода без навбара -->
       <template v-if="!showContent">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <div class="pin-page">
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </div>
       </template>
       
       <!-- Отображаем основной контент с навбаром -->
@@ -154,11 +190,15 @@ const showContent = computed(() => {
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Geologica:wght@100..900&display=swap');
+
 #app {
   font-family: "Geologica", sans-serif;
   width: 100%;
   background-color: #fff;
+  height: 100vh;
+  overflow: hidden;
 }
+
 * {
   padding: 0px;
   margin: 0px;
@@ -177,6 +217,13 @@ const showContent = computed(() => {
   box-sizing: border-box;
 }
 
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body,
 #app {
   width: 100%;
@@ -187,7 +234,6 @@ body,
 }
 
 /* Links */
-
 a,
 a:link,
 a:visited {
@@ -199,7 +245,6 @@ a:hover {
 }
 
 /* Common */
-
 aside,
 nav,
 footer,
@@ -225,7 +270,6 @@ svg {
 }
 
 /* Form */
-
 input,
 textarea,
 button,
@@ -263,12 +307,13 @@ button::-moz-focus-inner {
 }
 
 .wrap-load {
-  height: 90vh;
+  height: 100vh;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
 }
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -282,7 +327,7 @@ button::-moz-focus-inner {
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  flex: 1;
   min-height: 100vh;
 }
 
@@ -300,5 +345,6 @@ h1 {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  background-color: #f5f5f5;
 }
 </style>

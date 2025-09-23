@@ -25,7 +25,6 @@ const handleNumberClick = (num) => {
   if (pin.value.length === 4) {
     if (isCreateMode) {
       walletStore.setPinCode(pin.value);
-      router.push({ name: 'safety' });
     } else {
       if (walletStore.verifyPin(pin.value)) {
         // Сохраняем время успешного ввода PIN
