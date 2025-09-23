@@ -19,11 +19,11 @@ const requirePin = () => {
     return true
   }
   
-  // Проверяем, не истекло ли время сессии (например, 30 минут)
+  // Проверяем, не истекло ли время сессии (например, 5 минут)
   if (pinVerified) {
     const verificationTime = parseInt(pinVerified)
     const currentTime = Date.now()
-    const sessionTimeout = 30 * 60 * 1000 // 30 минут
+    const sessionTimeout = 5 * 60 * 1000 // 5 минут
     
     if (currentTime - verificationTime > sessionTimeout) {
       localStorage.removeItem('pinVerified')

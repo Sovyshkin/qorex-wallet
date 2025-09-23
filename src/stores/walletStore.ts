@@ -54,6 +54,7 @@ export const useWalletStore = defineStore("wallet", () => {
     codePasswordActive.value = true;
     setTimeout(() => {
       message_status.value = "";
+      router.push({ name: "safety" })
     }, 2500);
   }
   console.log(response);
