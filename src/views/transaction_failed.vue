@@ -1,5 +1,12 @@
 <script setup>
 import { useI18n } from "vue-i18n";
+import { useRouter } from 'vue-router'
+
+const router = useRouter();
+
+const goBack = () => {
+  router.push({ name: 'main' })
+}
 
 const { t } = useI18n();
 </script>
@@ -10,7 +17,7 @@ const { t } = useI18n();
         class="arrow"
         src="@/assets/arrow-left.svg"
         alt=""
-        @click="$router.push({ name: "main" })"
+        @click="goBack"
       />
       <h1>{{ t('failed_payment') }}</h1>
       <div class="emp"></div>
