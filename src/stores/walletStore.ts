@@ -130,6 +130,7 @@ const initializePinState = () => {
   const getUserInfo = () => {
     if (window.Telegram && window.Telegram.WebApp) {
       const initData = window.Telegram.WebApp.initData;
+      console.log(initData);
       if (initData) {
         const decodedInitData = decodeURIComponent(initData);
         const params = new URLSearchParams(decodedInitData);
