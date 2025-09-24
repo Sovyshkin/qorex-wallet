@@ -205,8 +205,8 @@ const initializePinState = () => {
       if (response.data.result) {
         pay_link.value = response.data.result.link;
         working_invoice = response.data.result.uuid;
-        // await creatingInvoceDb();
-        // window.location.href = pay_link.value;
+        await creatingInvoceDb();
+        window.location.href = pay_link.value;
       }
     } catch (err) {
       console.log(err);
