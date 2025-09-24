@@ -192,21 +192,21 @@ const initializePinState = () => {
     }
   };
 
-  const createInvoice = async () => {
+  const createInvoice = async (cryptocurrency = "USDT_TRC20") => {
     try {
       isLoading.value = true;
       let response = await axios.post(`/create_invoces`, {
         tg_id: user.value.tg_id,
         amount: amount.value,
-        cryptocurrency: "USDT_TRC20",
+        cryptocurrency: cryptocurrency,
       });
       console.log(response);
-
+  
       if (response.data.result) {
         pay_link.value = response.data.result.link;
         working_invoice = response.data.result.uuid;
-        await creatingInvoceDb();
-        window.location.href = pay_link.value;
+        // await creatingInvoceDb();
+        // window.location.href = pay_link.value;
       }
     } catch (err) {
       console.log(err);
