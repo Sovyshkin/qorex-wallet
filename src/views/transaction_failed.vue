@@ -10,7 +10,7 @@ const { t } = useI18n();
         class="arrow"
         src="@/assets/arrow-left.svg"
         alt=""
-        @click="$router.go(-1)"
+        @click="$router.push({ name: "main" })"
       />
       <h1>{{ t('failed_payment') }}</h1>
       <div class="emp"></div>
