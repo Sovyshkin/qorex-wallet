@@ -130,14 +130,17 @@ const initializePinState = () => {
   const getUserInfo = () => {
     if (window.Telegram && window.Telegram.WebApp) {
       const initData = window.Telegram.WebApp.initData;
-      console.log(initData);
       if (initData) {
         const decodedInitData = decodeURIComponent(initData);
         const params = new URLSearchParams(decodedInitData);
         const userString = params.get("user");
+        const start_param = params.get("start_param");
         if (userString) {
           userTg.value = JSON.parse(userString);
           localStorage.setItem("user", userTg.value);
+          if (start_param == 'error_trasaction') {
+            router.push({ name: 'transaction_failed' })
+          }
         }
       }
     } else {
