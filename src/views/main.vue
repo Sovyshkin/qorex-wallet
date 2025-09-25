@@ -44,7 +44,7 @@ onMounted(async () => {
             />
             <img src="../assets/open.png" v-else alt="open_balance" />
           </div>
-          <h2 class="balance-rub" v-if="!walletStore.hideBalanceActive">{{ walletStore.balance_rub }} ₽</h2>
+          <h2 class="balance-rub" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance_rub) }} ₽</h2>
           <h2 class="balance-rub" v-else>********</h2>
         </div>
         <div class="actions">
@@ -68,13 +68,13 @@ onMounted(async () => {
             />
             <div class="coin-currency">
                 <span class="coin-name">USDT</span>
-                <span class="currency-rate">{{ walletStore.usdt_price }} ₽</span>
+                <span class="currency-rate">{{ walletStore.roundToHundredths(walletStore.usdt_price) }} ₽</span>
             </div>
           </div>
           <div class="coin-activity">
-            <span class="coin-balance" v-if="!walletStore.hideBalanceActive">{{ walletStore.balance_rub }} ₽</span>
+            <span class="coin-balance" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance) }} ₽</span>
             <span class="coin-balance" v-else>********</span>
-            <span class="coin-balance-name" v-if="!walletStore.hideBalanceActive">{{ walletStore.balance }} USDT</span>
+            <span class="coin-balance-name" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance) }} USDT</span>
             <span class="coin-balance-name" v-else>********</span>
           </div>
         </div>

@@ -9,10 +9,31 @@ const walletStore = useWalletStore();
 const { t } = useI18n();
 const router = useRouter();
 
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString("ru-RU", {
+const parseCustomDate = (dateString) => {
+  if (dateString.length !== 14) {
+    return new Date(); // Возвращаем текущую дату если формат неверный
+  }
+  
+  const year = parseInt(dateString.substring(0, 4));
+  const month = parseInt(dateString.substring(4, 6)) - 1; // Месяцы от 0 до 11
+  const day = parseInt(dateString.substring(6, 8));
+  const hours = parseInt(dateString.substring(8, 10));
+  const minutes = parseInt(dateString.substring(10, 12));
+  const seconds = parseInt(dateString.substring(12, 14));
+  
+  return new Date(year, month, day, hours, minutes, seconds);
+};
+
+const getGroupKey = (dateString) => {
+  const date = parseCustomDate(dateString);
+  return date.toLocaleDateString("ru-RU");
+};
+
+const formatDisplayDate = (dateString) => {
+  const date = parseCustomDate(dateString);
+  return date.toLocaleDateString("ru-RU", {
     day: "numeric",
-    month: "long",
+    month: "long"
   });
 };
 
@@ -21,16 +42,30 @@ const groupedHistory = computed(() => {
     const groups = {};
 
     walletStore.history.forEach((item) => {
-      const dateKey = formatDate(item.datatime);
+      const dateKey = getGroupKey(item.datatime); // Уникальный ключ для группировки
+      const displayDate = formatDisplayDate(item.datatime); // Отображаемая дата
 
       if (!groups[dateKey]) {
-        groups[dateKey] = [];
+        groups[dateKey] = {
+          displayDate: displayDate, // Сохраняем отображаемую дату
+          items: []
+        };
       }
-      groups[dateKey].push(item);
+      groups[dateKey].items.push(item);
     });
-    return groups;
+    
+    // Сортируем группы по дате (новые сверху)
+    const sortedGroups = {};
+    Object.keys(groups)
+      .sort((a, b) => new Date(b) - new Date(a))
+      .forEach(key => {
+        sortedGroups[key] = groups[key];
+      });
+    
+    return sortedGroups;
   } catch (err) {
     console.log(err);
+    return {};
   }
 });
 
@@ -40,7 +75,6 @@ const getCurrencySymbol = (type) => {
 
 onMounted(async () => {
   await walletStore.getPrice();
-  console.log(walletStore.history);
 });
 </script>
 
@@ -48,17 +82,16 @@ onMounted(async () => {
   <header class="header">
     <h1>{{ t("history_tranc") }}</h1>
   </header>
-  {{ walletStore.history }}
   <div class="history">
     <template v-if="walletStore.history.length">
       <div
-        v-for="(items, date) in groupedHistory"
-        :key="date"
+        v-for="(group, dateKey) in groupedHistory"
+        :key="dateKey"
         class="history-group"
       >
-        <h2 class="history-date">{{ date }}</h2>
+        <h2 class="history-date">{{ group.displayDate }}</h2>
         <div
-          v-for="(item, index) in items"
+          v-for="(item, index) in group.items"
           :key="index"
           class="history-item"
           @click="walletStore.goTransaction(item)"
@@ -66,19 +99,19 @@ onMounted(async () => {
           <div class="history-info">
             <div class="wrap-img">
               <img
-              v-if="item.type_trans"
+                v-if="item.type_trans"
                 :src="`/assets/type-${item.type_trans}.svg`"
                 alt="transaction-type"
               />
               <img
-              v-else
+                v-else
                 :src="`/assets/type-buy.svg`"
                 alt="transaction-type"
               />
             </div>
             <div class="history-more-info">
               <span class="history-type" v-if="item.type_trans">{{ t(item.type_trans) }}</span>
-               <span class="history-type" v-else>{{ t('buy') }}</span>
+              <span class="history-type" v-else>{{ t('buy') }}</span>
               <span v-if="item.bool_suecess" class="history-status success">{{
                 t("success")
               }}</span>
@@ -96,7 +129,7 @@ onMounted(async () => {
                   ? "-"
                   : "+"
               }}
-              {{ item.amount }} USDT
+              {{ walletStore.roundToHundredths(item.amount) }} USDT
             </span>
             <span class="count-usdt" v-else>********</span>
             <span class="count-rub" v-if="!walletStore.hideBalanceActive">
@@ -107,7 +140,7 @@ onMounted(async () => {
                   ? "-"
                   : "+"
               }}
-              {{ walletStore.getRub(item.amount) }} ₽
+              {{ walletStore.roundToHundredths(walletStore.getRub(item.amount)) }} ₽
             </span>
             <span class="count-rub" v-else>********</span>
           </div>
@@ -120,6 +153,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Стили остаются без изменений */
 .header {
   padding: 20px 15px;
   width: 100%;
