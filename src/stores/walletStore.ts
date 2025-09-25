@@ -339,13 +339,14 @@ const initializePinState = () => {
     }
   };
 
-  // Функция для округления до сотых
+
   const roundToHundredths = (value: number | string | null | undefined): string => {
-    if (value === null || value === undefined || value === '') return '0.00'
-    const numValue = typeof value === 'string' ? parseFloat(value) : value
-    if (isNaN(numValue)) return '0.00'
-    return Number(numValue.toFixed(2)).toString()
-  }
+  if (value === null || value === undefined || value === '') return '0.00'
+  const numValue = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(numValue)) return '0.00'
+  const truncatedValue = Math.floor(numValue * 100) / 100
+  return truncatedValue.toFixed(2)
+}
 
   return {
     qrTake,
