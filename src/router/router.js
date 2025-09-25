@@ -30,11 +30,6 @@ const router = createRouter({
       name: "safety",
     },
     {
-      path: "/profile/devices",
-      component: () => import("../views/profile/AppDevices.vue"),
-      name: "devices",
-    },
-    {
       path: "/profile/info",
       component: () => import("../views/profile/AppInfo.vue"),
       name: "info",
