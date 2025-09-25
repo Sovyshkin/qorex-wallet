@@ -191,7 +191,6 @@ const debugInfo = computed(() => {
   width: 100%;
   background-color: #fff;
   height: 100vh;
-  overflow: hidden;
 }
 
 * {

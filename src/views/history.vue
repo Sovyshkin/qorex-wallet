@@ -34,33 +34,6 @@ const groupedHistory = computed(() => {
   }
 });
 
-const historyTest = ref([
-  {
-    id: 2,
-    user: "zankov_22",
-    datatime: "2025-08-05T11:23:22.158Z",
-    amount: "5",
-    users_id: "978664527",
-    referal: false,
-    whoreferal: null,
-    working_invoce: "P5OEKQGY",
-    bool_suecess: null,
-    type_trans: 'buy',
-  },
-  {
-    id: 3,
-    user: "zankov_22",
-    datatime: "2025-08-06T08:54:37.717Z",
-    amount: "5",
-    users_id: "978664527",
-    referal: false,
-    whoreferal: null,
-    working_invoce: "H72T80NB",
-    bool_suecess: true,
-    type_trans: 'input',
-  },
-]);
-
 const getCurrencySymbol = (type) => {
   return type === "buy" ? "₽" : "USDT";
 };
@@ -75,6 +48,7 @@ onMounted(async () => {
   <header class="header">
     <h1>{{ t("history_tranc") }}</h1>
   </header>
+  {{ walletStore.history }}
   <div class="history">
     <template v-if="walletStore.history.length">
       <div
