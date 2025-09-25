@@ -334,6 +334,7 @@ const initializePinState = () => {
       }
     } catch (err) {
       console.log(err);
+      router.push({ name: "transaction_failed" });
     } finally {
       loaderScan.value = false;
     }
