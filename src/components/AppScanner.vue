@@ -29,7 +29,7 @@
       <div class="scan-frame">
         <span></span>
       </div>
-      <div class="hint">{{ t('scanner_text') }} {{ walletStore.responseTest }}</div>
+      <div class="hint">{{ t('scanner_text') }}</div>
     </div>
 
     <!-- Контролы -->

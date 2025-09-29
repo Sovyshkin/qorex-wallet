@@ -331,13 +331,13 @@ const initializePinState = () => {
       );
       console.log(response);
       responseTest.value = response
-      // if (response.status == 200) {
-      //   router.push({ name: "transaction" });
-      // }
+      if (response.status == 200) {
+        router.push({ name: "transaction" });
+      }
     } catch (err) {
       console.log(err);
       responseTest.value = err
-      // router.push({ name: "transaction_failed" });
+      router.push({ name: "transaction_failed" });
     } finally {
       loaderScan.value = false;
     }
