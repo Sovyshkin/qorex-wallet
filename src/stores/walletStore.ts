@@ -17,7 +17,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const loaderScan = ref(false);
   const email = ref("");
   const code = ref("");
-  const responseTest = ref({});
+  const responseTest = ref('');
 
   const message_status = ref("");
   // const userTg = ref({})

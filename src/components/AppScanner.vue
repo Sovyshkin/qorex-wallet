@@ -29,7 +29,7 @@
       <div class="scan-frame">
         <span></span>
       </div>
-      <div class="hint">{{ t('scanner_text') }}</div>
+      <div class="hint">{{ t('scanner_text') }} {{ walletStore.responseTest }}</div>
     </div>
 
     <!-- Контролы -->
@@ -57,7 +57,6 @@
       <button class="close-preview" @click="clearImage">×</button>
       <button class="scan-from-preview" @click="scanFromImage">
         {{ t('scanner_text2') }}
-        {{ walletStore.responseTest }}
       </button>
     </div>
   </div>
