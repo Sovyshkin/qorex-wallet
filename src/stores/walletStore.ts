@@ -17,6 +17,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const loaderScan = ref(false);
   const email = ref("");
   const code = ref("");
+  const responseTest = ref({});
 
   const message_status = ref("");
   // const userTg = ref({})
@@ -329,12 +330,14 @@ const initializePinState = () => {
         {}
       );
       console.log(response);
-      if (response.status == 200) {
-        router.push({ name: "transaction" });
-      }
+      responseTest.value = response
+      // if (response.status == 200) {
+      //   router.push({ name: "transaction" });
+      // }
     } catch (err) {
       console.log(err);
-      router.push({ name: "transaction_failed" });
+      responseTest.value = err
+      // router.push({ name: "transaction_failed" });
     } finally {
       loaderScan.value = false;
     }
@@ -390,6 +393,7 @@ const initializePinState = () => {
     clearPinSession,
     initializePinState,
     createUser,
-    roundToHundredths
+    roundToHundredths,
+    responseTest
   };
 });

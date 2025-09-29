@@ -57,6 +57,7 @@
       <button class="close-preview" @click="clearImage">×</button>
       <button class="scan-from-preview" @click="scanFromImage">
         {{ t('scanner_text2') }}
+        {{ walletStore.responseTest }}
       </button>
     </div>
   </div>
