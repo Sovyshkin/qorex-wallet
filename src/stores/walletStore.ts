@@ -91,34 +91,45 @@ const initializePinState = () => {
   }
 };
 
-  const savedLang = localStorage.getItem("lang") || "RU";
-  i18n.global.locale = savedLang;
-  const langs = ref([
-    {
-      name: "Русский",
-      value: "RU",
-      active: savedLang == "RU",
-    },
-    {
-      name: "English",
-      value: "EN",
-      active: savedLang == "EN",
-    },
-  ]);
+const savedLang = localStorage.getItem("lang") || "RU";
+i18n.global.locale = savedLang;
+const availableLanguages = [
+  { name: "Русский", value: "RU" },
+  { name: "English", value: "EN" },
+];
 
-  const changeLang = (lang: string) => {
-    try {
-      langs.value = langs.value.map((language) => ({
-        ...language,
-        active: language.value === lang,
-      }));
-      i18n.global.locale = lang;
-      localStorage.setItem("lang", lang);
-      location.reload();
-    } catch (err) {
-      console.log(err);
+const langs = ref(
+  availableLanguages.map(language => ({
+    ...language,
+    active: language.value === savedLang // Сравниваем с сохраненным языком
+  }))
+);
+
+const changeLang = async (lang: string) => {
+  try {
+    // Проверяем, что язык существует
+    const languageExists = availableLanguages.some(l => l.value === lang);
+    if (!languageExists) {
+      console.warn(`Language ${lang} is not supported`);
+      return;
     }
-  };
+
+    // Обновляем состояние
+    langs.value = langs.value.map(language => ({
+      ...language,
+      active: language.value === lang
+    }));
+    
+    // Устанавливаем язык
+    i18n.global.locale = lang;
+    localStorage.setItem("lang", lang);
+    
+    location.reload();
+    
+  } catch (err) {
+    console.error("Error changing language:", err);
+  }
+};
 
   const goBack = () => {
     try {
@@ -330,13 +341,11 @@ const initializePinState = () => {
         {}
       );
       console.log(response);
-      responseTest.value = response
       if (response.status == 200) {
         router.push({ name: "transaction" });
       }
     } catch (err) {
       console.log(err);
-      responseTest.value = err
       router.push({ name: "transaction_failed" });
     } finally {
       loaderScan.value = false;

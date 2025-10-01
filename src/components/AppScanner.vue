@@ -83,6 +83,7 @@ let stream = null;
 // Автоматический запуск камеры при монтировании
 onMounted(async () => {
   try {
+    walletStore.loaderScan = false
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "environment",

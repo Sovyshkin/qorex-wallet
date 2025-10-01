@@ -79,81 +79,90 @@ onMounted(async () => {
 </script>
 
 <template>
-  <header class="header">
-    <h1>{{ t("history_tranc") }}</h1>
-  </header>
-  <div class="history">
-    <template v-if="walletStore.history.length">
-      <div
-        v-for="(group, dateKey) in groupedHistory"
-        :key="dateKey"
-        class="history-group"
-      >
-        <h2 class="history-date">{{ group.displayDate }}</h2>
-        <div
-          v-for="(item, index) in group.items"
-          :key="index"
-          class="history-item"
-          @click="walletStore.goTransaction(item)"
-        >
-          <div class="history-info">
-            <div class="wrap-img">
-              <img
-                v-if="item.type_trans"
-                :src="`/assets/type-${item.type_trans}.svg`"
-                alt="transaction-type"
-              />
-              <img
-                v-else
-                :src="`/assets/type-buy.svg`"
-                alt="transaction-type"
-              />
-            </div>
-            <div class="history-more-info">
-              <span class="history-type" v-if="item.type_trans">{{ t(item.type_trans) }}</span>
-              <span class="history-type" v-else>{{ t('buy') }}</span>
-              <span v-if="item.bool_suecess" class="history-status success">{{
-                t("success")
-              }}</span>
-              <span v-else class="history-status in_processing">{{
-                t("in_processing")
-              }}</span>
+  <div class="page-container">
+    <header class="header">
+      <h1>{{ t("history_tranc") }}</h1>
+    </header>
+    <div class="history-container">
+      <div class="history">
+        <template v-if="walletStore.history.length">
+          <div
+            v-for="(group, dateKey) in groupedHistory"
+            :key="dateKey"
+            class="history-group"
+          >
+            <h2 class="history-date">{{ group.displayDate }}</h2>
+            <div
+              v-for="(item, index) in group.items"
+              :key="index"
+              class="history-item"
+              @click="walletStore.goTransaction(item)"
+            >
+              <div class="history-info">
+                <div class="wrap-img">
+                  <img
+                    v-if="item.type_trans"
+                    :src="`/assets/type-${item.type_trans}.svg`"
+                    alt="transaction-type"
+                  />
+                  <img
+                    v-else
+                    :src="`/assets/type-buy.svg`"
+                    alt="transaction-type"
+                  />
+                </div>
+                <div class="history-more-info">
+                  <span class="history-type" v-if="item.type_trans">{{ t(item.type_trans) }}</span>
+                  <span class="history-type" v-else>{{ t('buy') }}</span>
+                  <span v-if="item.bool_suecess" class="history-status success">{{
+                    t("success")
+                  }}</span>
+                  <span v-else class="history-status in_processing">{{
+                    t("in_processing")
+                  }}</span>
+                </div>
+              </div>
+              <div class="history-count">
+                <span class="count-usdt" v-if="!walletStore.hideBalanceActive">
+                  {{
+                    item.type_trans === "buy"
+                      ? "-"
+                      : item.type_trans === "output"
+                      ? "-"
+                      : "+"
+                  }}
+                  {{ walletStore.roundToHundredths(item.amount) }} USDT
+                </span>
+                <span class="count-usdt" v-else>********</span>
+                <span class="count-rub" v-if="!walletStore.hideBalanceActive">
+                  {{
+                    item.type_trans === "buy"
+                      ? "-"
+                      : item.type_trans === "output"
+                      ? "-"
+                      : "+"
+                  }}
+                  {{ walletStore.roundToHundredths(walletStore.getRub(item.amount)) }} ₽
+                </span>
+                <span class="count-rub" v-else>********</span>
+              </div>
             </div>
           </div>
-          <div class="history-count">
-            <span class="count-usdt" v-if="!walletStore.hideBalanceActive">
-              {{
-                item.type_trans === "buy"
-                  ? "-"
-                  : item.type_trans === "output"
-                  ? "-"
-                  : "+"
-              }}
-              {{ walletStore.roundToHundredths(item.amount) }} USDT
-            </span>
-            <span class="count-usdt" v-else>********</span>
-            <span class="count-rub" v-if="!walletStore.hideBalanceActive">
-              {{
-                item.type_trans === "buy"
-                  ? "-"
-                  : item.type_trans === "output"
-                  ? "-"
-                  : "+"
-              }}
-              {{ walletStore.roundToHundredths(walletStore.getRub(item.amount)) }} ₽
-            </span>
-            <span class="count-rub" v-else>********</span>
-          </div>
-        </div>
-      </div>
-    </template>
+        </template>
 
-    <EmptyHistory v-else />
+        <EmptyHistory v-else />
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* Стили остаются без изменений */
+.page-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .header {
   padding: 20px 15px;
   width: 100%;
@@ -161,13 +170,22 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 20px;
+  flex-shrink: 0;
 }
 
 h1 {
   color: #141414;
 }
 
+.history-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .history {
+  flex: 1;
   width: 100%;
   border-radius: 25px 25px 0 0;
   color: black;
@@ -176,6 +194,19 @@ h1 {
   flex-direction: column;
   gap: 20px;
   overflow-y: auto;
+  max-height: 100%;
+  
+  /* Скрываем скроллбар */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE и Edge */
+}
+
+/* Скрываем скроллбар для Webkit браузеров (Chrome, Safari) */
+.history::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 .history-group {
@@ -202,6 +233,7 @@ h1 {
   border-radius: 12px;
   cursor: pointer;
   transition: all 500ms ease;
+  flex-shrink: 0;
 }
 
 .history-item:hover {
