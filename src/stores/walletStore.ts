@@ -351,7 +351,7 @@ const changeLang = async (lang: string) => {
       }
     } catch (err) {
       console.log(err);
-      if (err.detail == 'Недостаточно средств') {
+      if (err.response.data.detail == 'Недостаточно средств') {
         errMessage.value = t('insufficient_funds')
       } else {
         errMessage.value = t('failed_text')
