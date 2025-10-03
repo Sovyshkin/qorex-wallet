@@ -17,7 +17,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const loaderScan = ref(false);
   const email = ref("");
   const code = ref("");
-  const responseTest = ref('');
+  const errMessage = ref('');
 
   const message_status = ref("");
   // const userTg = ref({})
@@ -346,6 +346,11 @@ const changeLang = async (lang: string) => {
       }
     } catch (err) {
       console.log(err);
+      if (err.detail == 'Недостаточно средств') {
+        errMessage.value = t('insufficient_funds')
+      } else {
+        errMessage.value = t('failed_text')
+      }
       router.push({ name: "transaction_failed" });
     } finally {
       loaderScan.value = false;
@@ -403,6 +408,6 @@ const changeLang = async (lang: string) => {
     initializePinState,
     createUser,
     roundToHundredths,
-    responseTest
+    errMessage
   };
 });

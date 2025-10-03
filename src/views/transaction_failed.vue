@@ -1,8 +1,12 @@
 <script setup>
 import { useI18n } from "vue-i18n";
 import { useRouter } from 'vue-router'
+import { useWalletStore } from '@/stores/walletStore.ts'
 
 const router = useRouter();
+const walletStore = useWalletStore()
+
+
 
 const goBack = () => {
   router.push({ name: 'main' })
@@ -25,7 +29,7 @@ const { t } = useI18n();
     <div class="container">
         <img src="@/assets/error.svg" alt="">
         <h2>{{ t('failed_payment') }}</h2>
-        <p>{{t('failed_text')}}</p>
+        <p>{{walletStore.errMessage}}</p>
     </div>
     </div>
 </template>

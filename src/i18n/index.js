@@ -86,6 +86,7 @@ const messages = {
     wrong_pin: "Неверный PIN-код. Попробуйте снова.",
     failed_payment: "Ошибка транзакции",
     failed_text: "Попробуйте снова",
+    insufficient_funds: 'Недостаточно средств'
   },
   EN: {
     referal: "Referral program",
@@ -174,6 +175,7 @@ const messages = {
     wrong_pin: "Invalid PIN code. Try again.",
     failed_payment: "Transaction error",
     failed_text: "Try again",
+    insufficient_funds: 'Insufficient funds'
   },
 };
 
