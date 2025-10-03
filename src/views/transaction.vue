@@ -1,11 +1,12 @@
 <script setup>
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
-import { ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { ref, onMounted } from "vue";
 import { useWalletStore } from "@/stores/walletStore";
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute()
 const showCopiedNotification = ref(false);
 const walletStore = useWalletStore();
 
@@ -36,6 +37,16 @@ const formatDateTime = (dateInput) => {
 
   return `${day}.${month}.${year} ${hours}:${minutes}`;
 };
+
+onMounted(() => {
+  let { id, amount_usdt, amount_rub, datetime } = route.query
+  if (id && amount_usdt && amount_rub && datetime) {
+    walletStore.transaction.id = id
+    walletStore.transaction.amount = amount_usdt
+    walletStore.transaction.amountRub = amount_rub
+    walletStore.transaction.datatime = datetime
+  }
+})
 </script>
 
 <template>
