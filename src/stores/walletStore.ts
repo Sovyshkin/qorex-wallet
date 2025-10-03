@@ -342,12 +342,12 @@ const changeLang = async (lang: string) => {
       );
       console.log(response);
       if (response.status == 200) {
-        let id = response.data.more_detail.id
+        let { id, datatime } = response.data.more_detail
+        let { type_trans, bool_suecess } = response.data
         let amount_usdt = response.data.more_detail.amount
         await getPrice()
         let amount_rub = amount_usdt * usdt_price.value
-        let datetime = response.data.more_detail.datatime
-        router.push({ name: "transaction", query: { id, amount_rub, amount_usdt, datetime } });
+        router.push({ name: "transaction", query: { id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess } });
       }
     } catch (err) {
       console.log(err);
