@@ -340,13 +340,14 @@ const changeLang = async (lang: string) => {
         `/qr_take?tg_id=${user.value.tg_id}&qr_url=${link}&balance=${balance.value}`,
         {}
       );
-      console.log(response);
+      console.log('qr_take', response);
       if (response.status == 200) {
         let { id, datatime } = response.data.more_detail
         let { type_trans, bool_suecess } = response.data
         let amount_usdt = response.data.more_detail.amount
         await getPrice()
         let amount_rub = amount_usdt * usdt_price.value
+        console.log('data', {id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess});
         router.push({ name: "transaction", query: { id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess } });
       }
     } catch (err) {
