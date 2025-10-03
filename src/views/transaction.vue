@@ -40,12 +40,10 @@ const formatDateTime = (dateInput) => {
 
 onMounted(() => {
   let { id, amount_usdt, amount_rub, datatime, type_trans, bool_suecess } = route.query
-  console.log('транк данные', { id, amount_usdt, amount_rub, datatime, type_trans, bool_suecess });
-  
   if (id && amount_usdt && amount_rub && datatime && type_trans && bool_suecess) {
     walletStore.transaction.id = id
-    walletStore.transaction.amount = amount_usdt
-    walletStore.transaction.amountRub = amount_rub
+    walletStore.transaction.amount = walletStore.roundToHundredths(amount_usdt)
+    walletStore.transaction.amountRub = walletStore.roundToHundredths(amount_rub)
     walletStore.transaction.datatime = datatime
     walletStore.transaction.type_trans = type_trans
     walletStore.transaction.bool_suecess = bool_suecess === 'True'

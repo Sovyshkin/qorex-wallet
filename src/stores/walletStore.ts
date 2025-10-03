@@ -347,7 +347,6 @@ const changeLang = async (lang: string) => {
         let amount_usdt = response.data.more_detail.amount
         await getPrice()
         let amount_rub = amount_usdt * usdt_price.value
-        console.log('data', {id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess});
         router.push({ name: "transaction", query: { id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess } });
       }
     } catch (err) {
