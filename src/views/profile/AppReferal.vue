@@ -24,27 +24,27 @@ const goBack = () => {
 
 // Данные рефералов
 const referals = ref([
-  {
-    name: "Sasha",
-    regDate: "02/18/2025",
-    amount: "170,12",
-  },
-  {
-    name: "Voron",
-    regDate: "02/18/2025",
-    amount: "70,12",
-  },
-  {
-    name: "Alex",
-    regDate: "02/18/2025",
-    amount: "10,12",
-  },
+  // {
+  //   name: "Sasha",
+  //   regDate: "02/18/2025",
+  //   amount: "170,12",
+  // },
+  // {
+  //   name: "Voron",
+  //   regDate: "02/18/2025",
+  //   amount: "70,12",
+  // },
+  // {
+  //   name: "Alex",
+  //   regDate: "02/18/2025",
+  //   amount: "10,12",
+  // },
 ]);
 
 // Общая статистика
 const stats = ref({
-  totalreferals: 120,
-  totalAmount: "12 870,12",
+  totalreferals: 0,
+  totalAmount: "0",
 });
 </script>
 
@@ -105,6 +105,7 @@ const stats = ref({
             class="referal-item"
             v-for="(referal, index) in referals"
             :key="index"
+            v-if="referals.length > 0"
           >
             <div class="user-info">
               <div class="wrap-img"></div>
@@ -116,6 +117,17 @@ const stats = ref({
               </div>
             </div>
             <div class="user-amount">{{ referal.amount }} $</div>
+          </div>
+          
+          <!-- Заглушка для пустого списка рефералов -->
+          <div v-if="referals.length === 0" class="empty-referals">
+            <div class="empty-icon">
+              <img src="@/assets/referal.svg" alt="">
+            </div>
+            <h3 class="empty-title">{{ t("no_referals_yet") }}</h3>
+            <p class="empty-description">
+              {{ t("no_referals_description") }}
+            </p>
           </div>
         </div>
       </div>
@@ -333,5 +345,65 @@ const stats = ref({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.empty-referals {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.empty-icon {
+  background-color: #deec51;
+  padding: 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s infinite;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #141414;
+  margin: 0;
+}
+
+.empty-description {
+  font-size: 14px;
+  font-weight: 300;
+  color: #666;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 280px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(222, 236, 81, 0.3);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(222, 236, 81, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(222, 236, 81, 0);
+  }
 }
 </style>

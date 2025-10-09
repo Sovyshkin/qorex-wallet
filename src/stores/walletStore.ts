@@ -43,32 +43,47 @@ export const useWalletStore = defineStore("wallet", () => {
   };
 
   const setPinCode = async (pin: string) => {
-  pinCode.value = pin;
-  let response = await axios.patch(`/update_pincode/${user.value.tg_id}`, {
-    pincode: pinCode.value,
-  });
-  if (response.status == 200) {
-    Cookies.set("pinCode", pin, { expires: 365 });
-    localStorage.setItem('hasPinCode', 'true');
-    localStorage.setItem('pinVerified', Date.now().toString()); // Автоматически верифицируем
-    message_status.value = "success";
-    codePasswordActive.value = true;
-    setTimeout(() => {
-      message_status.value = "";
-      router.push({ name: "safety" })
-    }, 2500);
-  }
-  console.log(response);
-};
+    pinCode.value = pin;
+    let response = await axios.patch(`/update_pincode/${user.value.tg_id}`, {
+      pincode: pinCode.value,
+    });
+    if (response.status == 200) {
+      // Сохраняем пин-код в куки для быстрого доступа (но основным источником остается база данных)
+      Cookies.set("pinCode", pin, { expires: 365 });
+      localStorage.setItem('hasPinCode', 'true');
+      localStorage.setItem('pinVerified', Date.now().toString()); // Автоматически верифицируем
+      message_status.value = "success";
+      codePasswordActive.value = true;
+      setTimeout(() => {
+        message_status.value = "";
+        router.push({ name: "safety" })
+      }, 2500);
+    }
+    console.log(response);
+  };
 
   const verifyPin = (enteredPin: string) => {
-    pinCode.value = Cookies.get('pinCode')
+    // Если пин-код не загружен из базы данных, возвращаем false
+    if (!pinCode.value) {
+      console.log('PIN-код не найден в базе данных, автоматически отключаем защиту');
+      // Автоматически отключаем пин-код если он не найден
+      clearAllPinData();
+      return false;
+    }
     
     return enteredPin == pinCode.value;
   };
 
   const hasPinCode = () => {
-    return !!pinCode.value;
+    // Проверяем наличие пин-кода в переменной (загруженного из базы данных)
+    const hasPin = !!pinCode.value;
+    
+    // Если пин-кода нет, очищаем все связанные настройки
+    if (!hasPin) {
+      clearAllPinData();
+    }
+    
+    return hasPin;
   };
 
   const verifyAndStorePin = (enteredPin: string) => {
@@ -83,6 +98,15 @@ export const useWalletStore = defineStore("wallet", () => {
 
 const clearPinSession = () => {
   localStorage.removeItem('pinVerified');
+};
+
+const clearAllPinData = () => {
+  console.log('Очищаем все данные пин-кода');
+  pinCode.value = "";
+  codePasswordActive.value = false;
+  localStorage.removeItem('hasPinCode');
+  localStorage.removeItem('pinVerified');
+  Cookies.remove('pinCode');
 };
 
 const initializePinState = () => {
@@ -182,7 +206,18 @@ const changeLang = async (lang: string) => {
       user.value = response.data;
       balance.value = response.data.balance || 0;
       pinCode.value = response.data.pin_code;
+      
+      // Устанавливаем состояние активности пин-кода на основе его наличия
+      codePasswordActive.value = !!response.data.pin_code;
+      
       history.value = response.data.list_transctions_replenished;
+      console.log('=== ИСТОРИЯ ТРАНЗАКЦИЙ ИЗ API ===');
+      console.log('Полученная история:', history.value);
+      if (history.value && history.value.length > 0) {
+        console.log('Первая транзакция:', history.value[0]);
+        console.log('Дата первой транзакции:', history.value[0]?.datatime);
+      }
+      console.log('================================');
       if (usdt_price.value) {
         balance_rub.value = balance.value * usdt_price.value;
       } else {
@@ -410,6 +445,7 @@ const changeLang = async (lang: string) => {
     setPinCode,
     verifyAndStorePin,
     clearPinSession,
+    clearAllPinData,
     initializePinState,
     createUser,
     roundToHundredths,

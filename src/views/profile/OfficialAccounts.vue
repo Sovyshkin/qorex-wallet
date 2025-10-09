@@ -12,9 +12,9 @@ const router = useRouter();
 const accounts = ref([
   {
     name: 'Telegram',
-    value: '@Garda_wallet',
+    value: '@gardawallet',
     icon: 'telegram',
-    route: "aml"
+    href: 'https://t.me/gardawallet'
   },
   {
     name: "Instagram",
@@ -44,7 +44,7 @@ const accounts = ref([
   </header>
   <main class="safety">
     <div class="docs">
-      <a class="list-item" v-for="(item, i) in accounts" :key="i" :href="`#`">
+      <a class="list-item" v-for="(item, i) in accounts" :key="i" :href="item.href" target="_blank">
         <div class="info">
             <div class="wrap-img">
             <img :src="`/assets/${item.icon}.svg`" :alt="item.icon" />

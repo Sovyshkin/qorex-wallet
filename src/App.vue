@@ -12,7 +12,17 @@ const walletStore = useWalletStore()
 // Функция для проверки необходимости ввода PIN
 const requirePin = () => {
   const pinVerified = localStorage.getItem('pinVerified')
-  const hasPinCode = localStorage.getItem('hasPinCode') === 'true' || walletStore.hasPinCode()
+  
+  // Сначала проверяем, есть ли пин-код в системе
+  const hasPinCode = walletStore.hasPinCode()
+  
+  // Если пин-кода нет в системе, не требуем его ввод
+  if (!hasPinCode) {
+    // Очищаем все связанные настройки
+    localStorage.removeItem('hasPinCode');
+    localStorage.removeItem('pinVerified');
+    return false
+  }
   
   // Если PIN-код установлен и не был верифицирован в течение сессии
   if (hasPinCode && !pinVerified) {
@@ -101,6 +111,7 @@ const initializeApp = async () => {
     if (window.Telegram && window.Telegram.WebApp) {
       // Исправлено: правильное обращение к userTg
       if (walletStore.userTg && walletStore.userTg.id) {
+        // Загружаем данные пользователя (включая пин-код) из базы данных
         await walletStore.getUser();
         
         // Проверяем наличие PIN-кода при загрузке приложения

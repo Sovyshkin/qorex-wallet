@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useWalletStore } from "../../stores/walletStore.ts";
 import { useRouter, useRoute } from 'vue-router';
+import Cookies from "js-cookie";
 
 const { t } = useI18n();
 const walletStore = useWalletStore();
@@ -26,6 +27,25 @@ const handleNumberClick = (num) => {
     if (isCreateMode) {
       walletStore.setPinCode(pin.value);
     } else {
+      // Добавляем отладку
+      console.log('=== PIN CODE DEBUG ===');
+      console.log('Введенный пин-код:', pin.value);
+      console.log('Сохраненный пин-код из БД:', walletStore.pinCode);
+      console.log('Пин-код из куков:', Cookies.get('pinCode'));
+      console.log('Результат проверки:', walletStore.verifyPin(pin.value));
+      console.log('======================');
+      
+      // Проверяем, есть ли пин-код в системе
+      if (!walletStore.pinCode) {
+        console.log('Пин-код не найден, отключаем защиту и перенаправляем на главную');
+        // Пин-код не найден, автоматически отключаем защиту
+        walletStore.clearAllPinData();
+        
+        // Перенаправляем на главную страницу
+        router.push('/');
+        return;
+      }
+      
       if (walletStore.verifyPin(pin.value)) {
         // Сохраняем время успешного ввода PIN
         localStorage.setItem('pinVerified', Date.now().toString());
@@ -57,8 +77,26 @@ const endPress = () => {
 
 // Если пользователь пытается уйти без ввода PIN, блокируем навигацию
 onMounted(() => {
+  // Добавляем отладочную информацию при загрузке компонента
+  console.log('=== PIN CODE COMPONENT MOUNTED ===');
+  console.log('isCreateMode:', isCreateMode);
+  console.log('walletStore.pinCode:', walletStore.pinCode);
+  console.log('walletStore.hasPinCode():', walletStore.hasPinCode());
+  console.log('==================================');
+  
   if (!isCreateMode) {
-    // Запрещаем возврат без ввода PIN
+    // Проверяем, есть ли пин-код в системе
+    if (!walletStore.pinCode) {
+      console.log('Пин-код не найден при загрузке, отключаем защиту и перенаправляем');
+      // Пин-код не найден, автоматически отключаем защиту
+      walletStore.clearAllPinData();
+      
+      // Перенаправляем на главную страницу
+      router.push('/');
+      return;
+    }
+    
+    // Запрещаем возврат без ввода PIN только если пин-код существует
     window.history.pushState(null, null, window.location.href);
     window.onpopstate = function() {
       window.history.pushState(null, null, window.location.href);
