@@ -49,7 +49,7 @@ const stats = ref({
 </script>
 
 <template>
-  <div class="referal-page">
+  <!-- <div class="referal-page">
     <header class="header">
       <img
         src="@/assets/arrow-left.svg"
@@ -119,7 +119,6 @@ const stats = ref({
             <div class="user-amount">{{ referal.amount }} $</div>
           </div>
           
-          <!-- Заглушка для пустого списка рефералов -->
           <div v-if="referals.length === 0" class="empty-referals">
             <div class="empty-icon">
               <img src="@/assets/referal.svg" alt="">
@@ -137,10 +136,25 @@ const stats = ref({
         {{ t("copied") }}
       </div>
     </transition>
-  </div>
+  </div> -->
+  <div class="container">
+        <img src="../../assets/cat-loader.svg" alt="">
+        {{ t('in_development') }}...
+    </div>
 </template>
 
 <style scoped>
+.container {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    font-size: 20px;
+    font-weight: 600s;
+    padding: 10px;
+}
 .referal-page {
   width: 100%;
   display: flex;
