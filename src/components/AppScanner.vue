@@ -1,5 +1,5 @@
 <template>
-  <div class="wrap-load" v-if="walletStore.loaderScan || true">
+  <div class="wrap-load" v-if="walletStore.loaderScan">
     <LoaderScanner/>
   </div>
   <div class="qr-scanner-fullscreen">
