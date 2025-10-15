@@ -371,10 +371,26 @@ const changeLang = async (lang: string) => {
   const qrTake = async (link: string) => {
     try {
       loaderScan.value = true;
-      let response = await axios.post(
-        `/qr_take?tg_id=${user.value.tg_id}&qr_url=${link}&balance=${balance.value}`,
-        {}
-      );
+      
+      // Парсим URL и извлекаем параметры
+      const url = new URL(link);
+      const bank = url.searchParams.get('bank') || '';
+      const sum = url.searchParams.get('sum') || '';
+      const cur = url.searchParams.get('cur') || '';
+      const crc = url.searchParams.get('crc') || '';
+      
+      // Отправляем данные как query параметры
+      const params = new URLSearchParams({
+        tg_id: String(userTg.value.id),
+        qr_url: link,
+        bank: bank,
+        sum: sum,
+        cur: cur,
+        crc: crc
+      });
+      
+      let response = await axios.post(`/qr_take?${params.toString()}`, {});
+      
       console.log('qr_take', response);
       if (response.status == 200) {
         let { id, datatime } = response.data.more_detail
