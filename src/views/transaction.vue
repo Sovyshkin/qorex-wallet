@@ -26,7 +26,7 @@ const copy = (text) => {
 const formatDateTime = (dateInput) => {
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) {
-    console.error("Invalid date:", dateInput);
+
     return "Некорректная дата";
   }
   const day = String(date.getDate()).padStart(2, "0");

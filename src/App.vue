@@ -63,18 +63,18 @@ router.beforeEach(async (to, from, next) => {
     // Проверяем, является ли маршрут публичным
     const isPublicRoute = publicRoutes.includes(to.name);
     
-    console.log('Navigation:', to.name, 'isPublic:', isPublicRoute, 'requirePin:', requirePin());
+
     
     // Если маршрут не публичный и требуется ввод PIN-кода
     if (!isPublicRoute && requirePin()) {
       // Если у пользователя еще нет PIN-кода, перенаправляем на создание
       if (!walletStore.hasPinCode()) {
-        console.log('Redirecting to createPin - no PIN code');
+
         walletStore.isLoading = false;
         return next({ name: 'createPin' });
       } else {
         // Если PIN-код есть, но не верифицирован - перенаправляем на ввод
-        console.log('Redirecting to enterPin - PIN verification required');
+
         walletStore.isLoading = false;
         return next({ 
           name: 'enterPin', 
@@ -85,15 +85,15 @@ router.beforeEach(async (to, from, next) => {
 
     // Блокируем доступ к созданию PIN-кода если он уже установлен
     if (to.name === 'createPin' && walletStore.hasPinCode() && !requirePin()) {
-      console.log('Redirecting to home - PIN already exists');
+
       walletStore.isLoading = false;
       return next({ name: 'home' });
     }
 
-    console.log('Allowing navigation to:', to.name);
+
     next();
   } catch (error) {
-    console.error('Navigation error:', error);
+
     next();
   } finally {
     setTimeout(() => {
@@ -116,24 +116,24 @@ const initializeApp = async () => {
         
         // Проверяем наличие PIN-кода при загрузке приложения
         if (walletStore.hasPinCode() && requirePin()) {
-          console.log('App init: PIN required, redirecting to enterPin');
+
           // Если требуется PIN, перенаправляем на страницу ввода
           router.push({ 
             name: 'enterPin', 
             query: { returnTo: router.currentRoute.value.fullPath } 
           });
         } else {
-          console.log('App init: PIN not required or not set');
+
         }
       }
     }
   } catch (err) {
-    console.error('App initialization error:', err);
+
   }
 }
 
 onMounted(() => {
-  console.log('App mounted');
+
   initializeApp();
 });
 
@@ -141,7 +141,7 @@ onMounted(() => {
 const showContent = computed(() => {
   const currentRoute = router.currentRoute.value;
   const shouldShow = !publicRoutes.includes(currentRoute.name);
-  console.log('Show content:', shouldShow, 'for route:', currentRoute.name);
+
   return shouldShow;
 });
 

@@ -71,7 +71,7 @@ const goRoute = (route) => {
       router.push({ name: route });
     }
   } catch (err) {
-    console.log(err);
+
   }
 };
 
@@ -79,7 +79,7 @@ onMounted(async () => {
   try {
     await walletStore.getUser();
   } catch (err) {
-    console.log(err);
+
   }
 });
 </script>

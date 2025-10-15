@@ -132,7 +132,6 @@ onMounted(async () => {
       zxingReader.hints.set(2, 3); // TRY_HARDER
       zxingReader.hints.set(3, true); // PURE_BARCODE
     } catch (error) {
-      console.warn('Не удалось инициализировать ZXing reader:', error);
       zxingReader = null;
     }
     
@@ -162,7 +161,6 @@ onMounted(async () => {
     });
     
   } catch (error) {
-    console.error("Ошибка доступа к камере:", error);
     // Fallback к базовым настройкам
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -172,7 +170,7 @@ onMounted(async () => {
       await videoElement.value.play();
       startAutoScanning();
     } catch (fallbackError) {
-      console.error("Критическая ошибка камеры:", fallbackError);
+      // Критическая ошибка камеры
     }
   }
 });
@@ -188,7 +186,7 @@ onBeforeUnmount(() => {
     
     stopScanner();
   } catch (error) {
-    console.error('Ошибка при размонтировании компонента:', error);
+    // Ошибка при размонтировании компонента
   }
 });
 
@@ -208,7 +206,7 @@ const stopAutoScanning = () => {
       scanningInterval = null;
     }
   } catch (error) {
-    console.error('Ошибка в stopAutoScanning:', error);
+    // Ошибка в stopAutoScanning
   }
 };
 
@@ -988,25 +986,20 @@ const hideMessage = () => {
 
 // Общая функция обработки результата QR-кода
 const handleQRResult = (qrData) => {
-  console.log("🔍 Получены данные от сканера:", qrData);
   
   if (scanResult.value === qrData) {
-    console.log("⚠️ Дублирование QR-кода, пропускаем");
     return; // Избегаем дублирования
   }
   
   scanResult.value = qrData;
-  console.log("✅ Найден новый QR-код:", scanResult.value);
   stopAutoScanning();
   
   if (isValidUrl(scanResult.value)) {
-    console.log("🌐 QR-код содержит валидную ссылку");
     showMessageToUser(t('qr_found'), 'success', 2000);
     setTimeout(() => {
       walletStore.qrTake(scanResult.value);
     }, 500);
   } else {
-    console.log("❌ QR-код не является ссылкой:", scanResult.value);
     showMessageToUser(t('not_a_link'), 'error', 3000);
     // Возобновляем сканирование если это не ссылка
     setTimeout(() => {
@@ -1092,7 +1085,7 @@ const performScan = async () => {
     }
     
   } catch (error) {
-    console.error("Ошибка сканирования:", error);
+    // Ошибка сканирования
   }
 };
 
@@ -1134,7 +1127,7 @@ const manualScan = async () => {
           const result = await Html5Qrcode.scanFile(file, true);
           if (result) return result;
         } catch (e) {
-          console.log('Html5Qrcode failed, trying jsQR...');
+          // Html5Qrcode failed, trying jsQR...
         }
         
         // Попытка 2: jsQR как fallback (точно как в примере)
@@ -1147,7 +1140,7 @@ const manualScan = async () => {
           });
           if (result?.data) return result.data;
         } catch (e) {
-          console.log('jsQR failed, trying ZXing...');
+          // jsQR failed, trying ZXing...
         }
         
         // Попытка 3: ZXing для особо сложных случаев
@@ -1157,7 +1150,7 @@ const manualScan = async () => {
             if (result?.getText()) return result.getText();
           }
         } catch (e) {
-          console.log('ZXing failed');
+          // ZXing failed
         }
         
         return null;
@@ -1170,7 +1163,6 @@ const manualScan = async () => {
         handleQRResult(result);
       } else {
         // Если основные методы не сработали, пробуем с обработкой изображения
-        console.log('Trying with image processing...');
         
         // Обработка изображения для улучшения читаемости
         const processedAttempts = [
@@ -1231,7 +1223,6 @@ const manualScan = async () => {
       }
       
     } catch (error) {
-      console.error("Ошибка сканирования:", error);
       showMessageToUser(t('scan_error'), 'error', 4000);
     }
   }, 300);
@@ -1243,7 +1234,6 @@ const isValidUrl = (string) => {
     new URL(string);
     return true;
   } catch (err) {
-    console.log(err);
     return false;
   }
 };
@@ -1279,7 +1269,7 @@ const scanFromImage = async () => {
           const result = await Html5Qrcode.scanFile(file, true);
           if (result) return result;
         } catch (e) {
-          console.log('Html5Qrcode failed for image, trying jsQR...');
+          // Html5Qrcode failed for image, trying jsQR...
         }
         
         // Попытка 2: jsQR как fallback
@@ -1292,7 +1282,7 @@ const scanFromImage = async () => {
           });
           if (result?.data) return result.data;
         } catch (e) {
-          console.log('jsQR failed for image, trying ZXing...');
+          // jsQR failed for image, trying ZXing...
         }
         
         // Попытка 3: ZXing для особо сложных случаев
@@ -1302,7 +1292,7 @@ const scanFromImage = async () => {
             if (result?.getText()) return result.getText();
           }
         } catch (e) {
-          console.log('ZXing failed for image');
+          // ZXing failed for image
         }
         
         return null;
@@ -1312,7 +1302,6 @@ const scanFromImage = async () => {
       const result = await scanImageWithFallback(file, canvas);
       
       if (result && isValidUrl(result)) {
-        console.log("Найден QR-код в изображении:", result);
         scanResult.value = result;
         stopAutoScanning();
         showMessageToUser(t('qr_found'), 'success', 2000);
@@ -1323,7 +1312,6 @@ const scanFromImage = async () => {
       }
       
       // Если основные методы не сработали, пробуем с улучшенной обработкой
-      console.log('Trying advanced image processing...');
       
       const baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       
@@ -1394,7 +1382,6 @@ const scanFromImage = async () => {
       for (const attempt of advancedAttempts) {
         const processedResult = attempt();
         if (processedResult && isValidUrl(processedResult)) {
-          console.log("Найден QR-код после обработки изображения:", processedResult);
           scanResult.value = processedResult;
           stopAutoScanning();
           showMessageToUser(t('qr_found'), 'success', 2000);
@@ -1409,7 +1396,6 @@ const scanFromImage = async () => {
       showMessageToUser(t('qr_not_in_image'), 'error', 4000);
       
     } catch (error) {
-      console.error("Ошибка обработки изображения:", error);
       showMessageToUser(t('image_process_error'), 'error', 4000);
     }
   };
@@ -1430,7 +1416,7 @@ const stopScanner = () => {
         // ZXing не имеет reset(), просто обнуляем
         zxingReader = null;
       } catch (e) {
-        console.warn('Ошибка при очистке ZXing reader:', e);
+        // Ошибка при очистке ZXing reader
       }
     }
     
@@ -1443,7 +1429,7 @@ const stopScanner = () => {
         });
         stream = null;
       } catch (e) {
-        console.warn('Ошибка при остановке потока:', e);
+        // Ошибка при остановке потока
       }
     }
     
@@ -1453,7 +1439,7 @@ const stopScanner = () => {
       cachedCtx = null;
     }
   } catch (error) {
-    console.error('Ошибка в stopScanner:', error);
+    // Ошибка в stopScanner
   }
 };
 
@@ -1462,7 +1448,6 @@ const toggleTorch = async () => {
 
   const videoTrack = stream.getVideoTracks()[0];
   if (!videoTrack || !("applyConstraints" in videoTrack)) {
-    console.warn("Фонарик не поддерживается");
     return;
   }
 
@@ -1507,7 +1492,7 @@ const goBack = () => {
       router.push({ name: 'main' });
     }, 100);
   } catch (error) {
-    console.error('Ошибка при закрытии сканера:', error);
+    // Ошибка при закрытии сканера
     // В любом случае пытаемся вернуться назад
     router.go(-1);
   }

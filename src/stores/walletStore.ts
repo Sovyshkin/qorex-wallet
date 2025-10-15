@@ -59,13 +59,13 @@ export const useWalletStore = defineStore("wallet", () => {
         router.push({ name: "safety" })
       }, 2500);
     }
-    console.log(response);
+    
   };
 
   const verifyPin = (enteredPin: string) => {
     // Если пин-код не загружен из базы данных, возвращаем false
     if (!pinCode.value) {
-      console.log('PIN-код не найден в базе данных, автоматически отключаем защиту');
+      
       // Автоматически отключаем пин-код если он не найден
       clearAllPinData();
       return false;
@@ -101,7 +101,7 @@ const clearPinSession = () => {
 };
 
 const clearAllPinData = () => {
-  console.log('Очищаем все данные пин-кода');
+  
   pinCode.value = "";
   codePasswordActive.value = false;
   localStorage.removeItem('hasPinCode');
@@ -134,7 +134,7 @@ const changeLang = async (lang: string) => {
     // Проверяем, что язык существует
     const languageExists = availableLanguages.some(l => l.value === lang);
     if (!languageExists) {
-      console.warn(`Language ${lang} is not supported`);
+      
       return;
     }
 
@@ -151,7 +151,7 @@ const changeLang = async (lang: string) => {
     location.reload();
     
   } catch (err) {
-    console.error("Error changing language:", err);
+    
   }
 };
 
@@ -159,7 +159,7 @@ const changeLang = async (lang: string) => {
     try {
       router.go(-1);
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
@@ -180,29 +180,29 @@ const changeLang = async (lang: string) => {
         }
       }
     } else {
-      console.log("Telegram Web App API is not available");
+      
     }
   };
 
   const createUser = async () => {
     try {
-      console.log(userTg.value);
+      
       let response = await axios.post(`/new_user`, {
         first_name: userTg.value.first_name,
         last_name: userTg.value.last_name,
         username: userTg.value.username,
         tg_id: String(userTg.value.id),
       });
-      console.log(response);
+      
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
   const getUser = async () => {
     try {
       let response = await axios.get(`/user/${userTg.value.id}`);
-      console.log(response);
+      
       user.value = response.data;
       balance.value = response.data.balance || 0;
       pinCode.value = response.data.pin_code;
@@ -211,22 +211,22 @@ const changeLang = async (lang: string) => {
       codePasswordActive.value = !!response.data.pin_code;
       
       history.value = response.data.list_transctions_replenished;
-      console.log('=== ИСТОРИЯ ТРАНЗАКЦИЙ ИЗ API ===');
-      console.log('Полученная история:', history.value);
+      
+      
       if (history.value && history.value.length > 0) {
-        console.log('Первая транзакция:', history.value[0]);
-        console.log('Дата первой транзакции:', history.value[0]?.datatime);
+        
+        
       }
-      console.log('================================');
+      
       if (usdt_price.value) {
         balance_rub.value = balance.value * usdt_price.value;
       } else {
         await getPrice();
         balance_rub.value = balance.value * usdt_price.value;
       }
-      console.log(balance.value);
+      
     } catch (err) {
-      console.log(err);
+      
       if (err.status == 404 || err.status == 500) {
         await createUser();
       }
@@ -236,10 +236,10 @@ const changeLang = async (lang: string) => {
   const getPrice = async () => {
     try {
       let response = await axios.get("/last_price");
-      console.log(response);
+      
       usdt_price.value = response.data.last_price;
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
@@ -251,7 +251,7 @@ const changeLang = async (lang: string) => {
         amount: amount.value,
         cryptocurrency: cryptocurrency,
       });
-      console.log(response);
+      
   
       if (response.data.result) {
         pay_link.value = response.data.result.link;
@@ -260,7 +260,7 @@ const changeLang = async (lang: string) => {
         window.location.href = pay_link.value;
       }
     } catch (err) {
-      console.log(err);
+      
     } finally {
       isLoading.value = false;
     }
@@ -275,9 +275,9 @@ const changeLang = async (lang: string) => {
         id_tg_user: user.value.tg_id,
         working_invoce: working_invoice,
       });
-      console.log(response);
+      
     } catch (err) {
-      console.log(err);
+      
     } finally {
       isLoading.value = false;
     }
@@ -288,7 +288,7 @@ const changeLang = async (lang: string) => {
       localStorage.clear();
       router.push("/");
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
@@ -298,9 +298,9 @@ const changeLang = async (lang: string) => {
       let response = await axios.patch(`/update_email/${user.value.tg_id}`, {
         email: email.value,
       });
-      console.log(response);
+      
     } catch (err) {
-      console.log(err);
+      
     } finally {
       isLoading.value = false;
     }
@@ -310,12 +310,12 @@ const changeLang = async (lang: string) => {
     try {
       isLoading.value = true;
       let response = await axios.patch(`/send_code?email=${email.value}`);
-      console.log(response);
+      
       if (response.status == 200) {
         router.push({ name: "enter_code" });
       }
     } catch (err) {
-      console.log(err);
+      
     } finally {
       isLoading.value = false;
     }
@@ -328,7 +328,7 @@ const changeLang = async (lang: string) => {
         `/check_code?email=${email.value}&code=${code.value}&tg_id=${user.value.tg_id}`
       );
       code.value = "";
-      console.log(response);
+      
       if (response.status == 200) {
         message_status.value = "success";
         setTimeout(() => {
@@ -337,7 +337,7 @@ const changeLang = async (lang: string) => {
         }, 2500);
       }
     } catch (err) {
-      console.log(err);
+      
       message_status.value = "error";
       setTimeout(() => {
         message_status.value = "";
@@ -352,11 +352,11 @@ const changeLang = async (lang: string) => {
       await getPrice();
       transaction.value = { ...item };
       transaction.value.amountRub = getRub(item.amount);
-      console.log(transaction.value);
+      
       
       router.push({ name: "transaction" });
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
@@ -364,7 +364,7 @@ const changeLang = async (lang: string) => {
     try {
       return `${Math.round(amount * usdt_price.value * 100) / 100}`;
     } catch (err) {
-      console.log(err);
+      
     }
   };
 
@@ -391,7 +391,7 @@ const changeLang = async (lang: string) => {
       
       let response = await axios.post(`/qr_take?${params.toString()}`, {});
       
-      console.log('qr_take', response);
+      
       if (response.status == 200) {
         let { id, datatime } = response.data.more_detail
         let { type_trans, bool_suecess } = response.data
@@ -401,7 +401,7 @@ const changeLang = async (lang: string) => {
         router.push({ name: "transaction", query: { id, amount_rub, amount_usdt, datatime, type_trans, bool_suecess } });
       }
     } catch (err) {
-      console.log(err);
+      
       if (err.response.data.detail == 'Недостаточно средств') {
         errMessage.value = t('insufficient_funds')
       } else {

@@ -17,7 +17,7 @@ onMounted(async () => {
     await walletStore.getUser()
     await walletStore.getPrice()
   } catch (err) {
-    console.log(err);
+
     
   }
 })

@@ -23,7 +23,7 @@ const hideBalanceActive = ref(walletStore.hideBalanceActive);
 
 // Обработчик изменения защиты PIN-кодом
 const toggleCodePassword = (val) => {
-  console.log(val);
+
   if (!val) {
     walletStore.codePasswordActive = false;
   } else {
@@ -41,7 +41,7 @@ const goBack = () => {
   try {
     router.push({ name: "profile" })
   } catch (err) {
-    console.log(err);
+
     
   }
 }

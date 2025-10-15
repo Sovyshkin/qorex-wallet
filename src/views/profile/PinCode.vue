@@ -27,17 +27,8 @@ const handleNumberClick = (num) => {
     if (isCreateMode) {
       walletStore.setPinCode(pin.value);
     } else {
-      // Добавляем отладку
-      console.log('=== PIN CODE DEBUG ===');
-      console.log('Введенный пин-код:', pin.value);
-      console.log('Сохраненный пин-код из БД:', walletStore.pinCode);
-      console.log('Пин-код из куков:', Cookies.get('pinCode'));
-      console.log('Результат проверки:', walletStore.verifyPin(pin.value));
-      console.log('======================');
-      
       // Проверяем, есть ли пин-код в системе
       if (!walletStore.pinCode) {
-        console.log('Пин-код не найден, отключаем защиту и перенаправляем на главную');
         // Пин-код не найден, автоматически отключаем защиту
         walletStore.clearAllPinData();
         
@@ -78,16 +69,16 @@ const endPress = () => {
 // Если пользователь пытается уйти без ввода PIN, блокируем навигацию
 onMounted(() => {
   // Добавляем отладочную информацию при загрузке компонента
-  console.log('=== PIN CODE COMPONENT MOUNTED ===');
-  console.log('isCreateMode:', isCreateMode);
-  console.log('walletStore.pinCode:', walletStore.pinCode);
-  console.log('walletStore.hasPinCode():', walletStore.hasPinCode());
-  console.log('==================================');
+
+
+
+
+
   
   if (!isCreateMode) {
     // Проверяем, есть ли пин-код в системе
     if (!walletStore.pinCode) {
-      console.log('Пин-код не найден при загрузке, отключаем защиту и перенаправляем');
+
       // Пин-код не найден, автоматически отключаем защиту
       walletStore.clearAllPinData();
       

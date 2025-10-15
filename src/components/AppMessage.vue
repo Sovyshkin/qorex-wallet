@@ -9,7 +9,7 @@ const clearMessage = () => {
   try {
     walletStore.message_status = "";
   } catch (err) {
-    console.log(err);
+    
   }
 };
 </script>
