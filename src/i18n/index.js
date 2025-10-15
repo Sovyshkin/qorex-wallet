@@ -68,6 +68,8 @@ const messages = {
     error: "Ошибка",
     in_processing: "В обработке",
     success: "Успешно",
+    error_timer: "Истекло время запроса",
+    transaction_error: "Ошибка транзакции",
     transaction: "Транзакция",
     date_time: "Дата и время",
     transaction_id: "ID транзакции",
@@ -88,6 +90,11 @@ const messages = {
     failed_text: "Попробуйте снова",
     insufficient_funds: 'Недостаточно средств',
     no_referals_yet: "Пока нет рефералов",
+    qr_found: "QR-код найден!",
+    scanning: "Сканирование...",
+    camera_not_ready: "Камера не готова",
+    qr_not_found_manual: "QR-код не найден",
+    advanced_scanning: "Глубокое сканирование",
     no_referals_description: "Поделитесь своей реферальной ссылкой с друзьями и получайте до 15% комиссионных с их операций"
   },
   EN: {
@@ -160,6 +167,8 @@ const messages = {
     error: "Error",
     in_processing: "In processing",
     success: "Successfully",
+    error_timer: "Request timeout",
+    transaction_error: "Transaction error",
     transaction: "Transaction",
     date_time: "Date and time",
     transaction_id: "Transaction ID",
@@ -179,7 +188,12 @@ const messages = {
     failed_text: "Try again",
     insufficient_funds: 'Insufficient funds',
     no_referals_yet: "No referrals yet",
-    no_referals_description: "Share your referral link with friends and earn up to 15% commission on their transactions"
+    no_referals_description: "Share your referral link with friends and earn up to 15% commission on their transactions",
+    qr_found: "QR-code found!",
+    scanning: "Scanning...",
+    camera_not_ready: "Camera not ready",
+    qr_not_found_manual: "QR-code not found. Try to point the camera more clearly at the code",
+    advanced_scanning: "Deep scanning",
   },
 };
 

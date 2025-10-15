@@ -146,6 +146,26 @@ const getCurrencySymbol = (type) => {
   return type === "buy" ? "₽" : "USDT";
 };
 
+const getTransactionStatus = (boolSuccess) => {
+  // Проверяем различные значения статуса
+  switch (boolSuccess) {
+    case "Error timer":
+      return { text: t('error_timer'), class: 'error' };
+    case "True":
+    case 'success':
+    case true:
+      return { text: t('success'), class: 'success' };
+    case "Error":
+      return { text: t('transaction_error'), class: 'error' };
+    case 'wait':
+    case "wait_pay":
+    case false:
+      return { text: t('in_processing'), class: 'in_processing' };
+    default:
+      return { text: t('in_processing'), class: 'in_processing' };
+  }
+};
+
 onMounted(async () => {
   console.log('=== ИСТОРИЯ КОМПОНЕНТ ЗАГРУЖЕН ===');
   console.log('Текущая история в store:', walletStore.history);
@@ -194,12 +214,11 @@ onMounted(async () => {
                 <div class="history-more-info">
                   <span class="history-type" v-if="item.type_trans">{{ t(item.type_trans) }}</span>
                   <span class="history-type" v-else>{{ t('buy') }}</span>
-                  <span v-if="item.bool_suecess" class="history-status success">{{
-                    t("success")
-                  }}</span>
-                  <span v-else class="history-status in_processing">{{
-                    t("in_processing")
-                  }}</span>
+                  <span 
+                    :class="`history-status ${getTransactionStatus(item.bool_suecess).class}`"
+                  >
+                    {{ getTransactionStatus(item.bool_suecess).text }}
+                  </span>
                 </div>
               </div>
               <div class="history-count">
