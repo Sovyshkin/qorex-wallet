@@ -96,6 +96,29 @@ export default {
     // Автоматический запуск Html5QrcodeScanner при монтировании
     onMounted(async () => {
       try {
+        // Убираем любые отступы на уровне body и html для полноэкранного режима
+        const originalBodyStyle = document.body.style.cssText;
+        const originalHtmlStyle = document.documentElement.style.cssText;
+        
+        document.body.style.cssText = `
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          width: 100vw !important;
+          height: 100vh !important;
+        `;
+        
+        document.documentElement.style.cssText = `
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+        `;
+        
+        // Сохраняем оригинальные стили для восстановления
+        window.originalBodyStyle = originalBodyStyle;
+        window.originalHtmlStyle = originalHtmlStyle;
+        
         const handleEscape = (event) => {
           if (event.key === 'Escape') {
             goBack();
@@ -106,33 +129,58 @@ export default {
         
         // Сначала проверяем доступ к камере с улучшенными настройками
         try {
-          console.log('Testing camera access...');
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
+          // Проверяем доступность медиа устройств
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('MediaDevices API not supported');
+          }
+          
+          // Специальные настройки для Telegram WebView
+          const constraints = {
+            video: {
               facingMode: "environment",
-              width: { ideal: 1920, min: 1280 },
-              height: { ideal: 1080, min: 720 },
+              width: { ideal: 1920, min: 640 },
+              height: { ideal: 1080, min: 480 },
               frameRate: { ideal: 10, max: 15 }
-            } 
-          });
+            }
+          };
+          
+          // В Telegram может потребоваться дополнительная задержка
+          if (window.Telegram?.WebApp) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
           
           // Логируем информацию о камере
           const videoTrack = stream.getVideoTracks()[0];
           const settings = videoTrack.getSettings();
-          console.log('Camera settings:', settings);
           
           // Останавливаем тестовый поток
           stream.getTracks().forEach(track => track.stop());
           
           // Инициализируем Html5QrcodeScanner и сразу запускаем сканер
           initializeScanner();
-          startScanner();
+          
+          // В Telegram может потребоваться дополнительная задержка перед запуском
+          if (window.Telegram?.WebApp) {
+            setTimeout(() => startScanner(), 1500);
+          } else {
+            startScanner();
+          }
           
         } catch (cameraError) {
           if (cameraError.name === 'NotAllowedError') {
-            showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
+            if (window.Telegram?.WebApp) {
+              showMessageToUser('Доступ к камере запрещен. В Telegram откройте приложение через браузер или разрешите доступ к камере в настройках системы.', 'error', 8000);
+            } else {
+              showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
+            }
           } else if (cameraError.name === 'NotFoundError') {
             showMessageToUser('Камера не найдена. Убедитесь что камера подключена к устройству.', 'error', 6000);
+          } else if (cameraError.message === 'MediaDevices API not supported') {
+            showMessageToUser('Камера не поддерживается в этом браузере. Попробуйте открыть приложение в Chrome или Safari.', 'error', 8000);
+          } else if (window.location.protocol !== 'https:') {
+            showMessageToUser('Камера работает только через HTTPS. Обновите адрес сайта.', 'error', 6000);
           } else {
             showMessageToUser('Ошибка доступа к камере: ' + cameraError.message, 'error', 6000);
           }
@@ -145,13 +193,24 @@ export default {
 
     onBeforeUnmount(() => {
       try {
+        // Восстанавливаем стили при выходе из компонента
+        if (window.originalBodyStyle !== undefined) {
+          document.body.style.cssText = window.originalBodyStyle;
+          delete window.originalBodyStyle;
+        }
+        
+        if (window.originalHtmlStyle !== undefined) {
+          document.documentElement.style.cssText = window.originalHtmlStyle;
+          delete window.originalHtmlStyle;
+        }
+        
         if (window.escapeHandler) {
           document.removeEventListener('keydown', window.escapeHandler);
           delete window.escapeHandler;
         }
         stopScanner();
       } catch (error) {
-        console.error('Error during unmount:', error);
+        // Игнорируем ошибки при размонтировании
       }
     });
 
@@ -252,12 +311,25 @@ export default {
         }
         
         // Автоматически нажимаем кнопку разрешения камеры если она появилась
-        setTimeout(() => {
+        // В Telegram WebView может потребоваться несколько попыток
+        const tryClickPermissionButton = () => {
           const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
           if (permissionButton && permissionButton.style.display !== 'none') {
             permissionButton.click();
+            return true;
           }
-        }, 500);
+          return false;
+        };
+        
+        setTimeout(() => tryClickPermissionButton(), 500);
+        setTimeout(() => tryClickPermissionButton(), 1000);
+        setTimeout(() => tryClickPermissionButton(), 1500);
+        
+        // Дополнительные попытки для Telegram
+        if (window.Telegram?.WebApp) {
+          setTimeout(() => tryClickPermissionButton(), 2000);
+          setTimeout(() => tryClickPermissionButton(), 3000);
+        }
         
         // Скрываем элементы Html5QrcodeScanner UI через CSS
         setTimeout(() => {
@@ -266,15 +338,23 @@ export default {
         
         // Повторные проверки видео и повторное нажатие кнопки
         setTimeout(() => {
-          const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
-          if (permissionButton && permissionButton.style.display !== 'none') {
-            permissionButton.click();
-          }
+          tryClickPermissionButton();
           forceShowVideo();
         }, 2000);
         
         setTimeout(() => forceShowVideo(), 3000);
         setTimeout(() => forceShowVideo(), 5000);
+        
+        // Дополнительные проверки для Telegram WebView
+        if (window.Telegram?.WebApp) {
+          setTimeout(() => {
+            tryClickPermissionButton();
+            forceShowVideo();
+          }, 4000);
+          
+          setTimeout(() => forceShowVideo(), 6000);
+          setTimeout(() => forceShowVideo(), 8000);
+        }
         
 
         
@@ -341,16 +421,9 @@ export default {
           opacity: 1 !important;
         `;
         
-        // Проверяем состояние видео для диагностики
-        if (video.videoWidth && video.videoHeight) {
-          console.log(`Video stream active: ${video.videoWidth}x${video.videoHeight}`);
-        } else {
-          console.log('Video stream not ready yet...');
-        }
-        
         // Добавляем обработчик события загрузки метаданных
         video.addEventListener('loadedmetadata', () => {
-          console.log(`Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
+          // Видео готово к работе
         });
         
         return true;
@@ -474,7 +547,7 @@ export default {
       }
       // Логируем только критические ошибки, игнорируем обычные ошибки распознавания
       else if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        console.log('QR Scan error:', error);
+        // Критические ошибки сканирования
       }
       // Обычные ошибки сканирования игнорируем - это нормально когда нет QR кода в кадре
     };
@@ -614,6 +687,17 @@ export default {
 
     const goBack = () => {
       try {
+        // Восстанавливаем оригинальные стили body и html
+        if (window.originalBodyStyle !== undefined) {
+          document.body.style.cssText = window.originalBodyStyle;
+          delete window.originalBodyStyle;
+        }
+        
+        if (window.originalHtmlStyle !== undefined) {
+          document.documentElement.style.cssText = window.originalHtmlStyle;
+          delete window.originalHtmlStyle;
+        }
+        
         // Останавливаем сканер
         stopScanner();
         
@@ -662,21 +746,33 @@ export default {
 </script>
 
 <style scoped>
+/* Сброс всех отступов для полноэкранного режима */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 /* Стили из AppScanner.vue - полноэкранный дизайн */
 .app-scanner-container {
   position: relative;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .qr-scanner-fullscreen {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background: black;
   z-index: 1000;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .scanner-video {
