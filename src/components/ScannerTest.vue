@@ -112,19 +112,8 @@ export default {
       // Показываем сообщение о загрузке сразу
       showMessageToUser('Запуск камеры...', 'info', 3000);
       
-      // Проверяем Telegram и показываем подсказку
-      const isTelegramCheck = window.Telegram?.WebApp || 
-                             navigator.userAgent.includes('Telegram') ||
-                             navigator.userAgent.includes('TelegramBot') ||
-                             window.TelegramWebviewProxy ||
-                             window.external?.notify ||
-                             document.referrer.includes('telegram');
-      
-      if (isTelegramCheck) {
-        setTimeout(() => {
-          showTelegramHelp.value = true;
-        }, 2000);
-      }
+      // Подсказку Telegram показываем только если возникли проблемы с камерой
+      // Не показываем сразу, чтобы не мешать системному запросу разрешений
       
       try {
         // Убираем любые отступы на уровне body и html для полноэкранного режима
@@ -179,20 +168,21 @@ export default {
             }
           };
           
-          // В Telegram сначала проверяем разрешения
-          if (isTelegram && navigator.permissions) {
-            try {
-              const permission = await navigator.permissions.query({name: 'camera'});
-              if (permission.state === 'denied') {
-                showMessageToUser('Доступ к камере заблокирован. Разрешите доступ к камере в настройках браузера Telegram', 'error', 10000);
-                return;
-              }
-            } catch (e) {
-              // Игнорируем ошибки проверки разрешений
-            }
+          // Для Telegram отслеживаем взаимодействие пользователя
+          let userInteracted = false;
+          const handleUserInteraction = () => {
+            userInteracted = true;
+            document.removeEventListener('click', handleUserInteraction);
+            document.removeEventListener('touchstart', handleUserInteraction);
+          };
+          
+          if (isTelegram) {
+            document.addEventListener('click', handleUserInteraction, { once: true });
+            document.addEventListener('touchstart', handleUserInteraction, { once: true });
           }
           
-          // Быстрая проверка доступа к камере
+          // Пытаемся получить доступ к камере
+          // getUserMedia автоматически покажет системный запрос на разрешение
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
           
           // Останавливаем тестовый поток сразу
@@ -220,17 +210,33 @@ export default {
                            window.external?.notify ||
                            document.referrer.includes('telegram');
           
+          // Для Telegram добавляем задержку перед показом ошибки
+          // чтобы дать пользователю время ответить на системный запрос
+          const showErrorWithDelay = (message, duration) => {
+            if (isTelegram) {
+              setTimeout(() => {
+                showMessageToUser(message, 'error', duration);
+              }, 1000); // Задержка 1 секунда для Telegram
+            } else {
+              showMessageToUser(message, 'error', duration);
+            }
+          };
+          
           if (cameraError.name === 'NotAllowedError') {
             if (isTelegram) {
-              showMessageToUser('🔧 Инструкция для Telegram:\n1. Нажмите ⋯ в правом верхнем углу\n2. Выберите "Открыть в браузере"\n3. Или разрешите доступ к камере в настройках Telegram', 'error', 15000);
+              // Показываем подсказку Telegram только при ошибке доступа
+              setTimeout(() => {
+                showTelegramHelp.value = true;
+              }, 1500);
+              showErrorWithDelay('🔧 Инструкция для Telegram:\n1. Нажмите ⋯ в правом верхнем углу\n2. Выберите "Открыть в браузере"\n3. Или разрешите доступ к камере в настройках Telegram', 15000);
             } else {
-              showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
+              showErrorWithDelay('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 6000);
             }
           } else if (cameraError.name === 'NotFoundError') {
             if (isTelegram) {
-              showMessageToUser('📱 Камера недоступна в Telegram WebApp.\n\nВарианты решения:\n• Используйте кнопку "Выбрать файл" внизу\n• Откройте приложение в браузере через меню Telegram', 'error', 12000);
+              showErrorWithDelay('📱 Камера недоступна в Telegram WebApp.\n\nВарианты решения:\n• Используйте кнопку "Выбрать файл" внизу\n• Откройте приложение в браузере через меню Telegram', 12000);
             } else {
-              showMessageToUser('Камера не найдена. Убедитесь что камера подключена к устройству.', 'error', 6000);
+              showErrorWithDelay('Камера не найдена. Убедитесь что камера подключена к устройству.', 6000);
             }
           } else if (cameraError.message === 'MediaDevices API not supported') {
             showMessageToUser('Камера не поддерживается в этом браузере. Попробуйте открыть приложение в Chrome или Safari.', 'error', 8000);
@@ -238,10 +244,35 @@ export default {
             showMessageToUser('Камера работает только через HTTPS. Обновите адрес сайта.', 'error', 6000);
           } else {
             if (isTelegram) {
-              showMessageToUser('Камера недоступна в Telegram. Используйте сканирование файлов или откройте в браузере', 'error', 8000);
+              showErrorWithDelay('Камера недоступна в Telegram. Используйте сканирование файлов или откройте в браузере', 8000);
             } else {
-              showMessageToUser('Ошибка доступа к камере: ' + cameraError.message, 'error', 6000);
+              showErrorWithDelay('Ошибка доступа к камере: ' + cameraError.message, 6000);
             }
+          }
+          
+          // Для Telegram добавляем дополнительную попытку через 3 секунды
+          // на случай если пользователь дал разрешение, но первая попытка не удалась
+          if (isTelegram && cameraError.name === 'NotAllowedError') {
+            setTimeout(async () => {
+              try {
+                hideMessage(); // Скрываем предыдущее сообщение об ошибке
+                showMessageToUser('Повторная попытка подключения к камере...', 'info', 3000);
+                
+                const retryStream = await navigator.mediaDevices.getUserMedia(constraints);
+                retryStream.getTracks().forEach(track => track.stop());
+                
+                // Если успешно, инициализируем сканер
+                hideMessage();
+                showTelegramHelp.value = false; // Скрываем подсказку Telegram
+                showMessageToUser('Камера успешно подключена!', 'success', 2000);
+                initializeScanner();
+                setTimeout(() => startScanner(), 500);
+                
+              } catch (retryError) {
+                // Если повторная попытка не удалась, показываем окончательную ошибку
+                showMessageToUser('Доступ к камере по-прежнему заблокирован. Используйте кнопку "Выбрать файл" или откройте в браузере', 'error', 10000);
+              }
+            }, 3000);
           }
         }
         
