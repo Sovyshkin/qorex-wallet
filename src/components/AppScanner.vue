@@ -1,5 +1,8 @@
 <template>
   <div class="app-scanner-container">
+    <div class="wrap-load" v-if="walletStore.loaderScan">
+      <LoaderScanner/>
+    </div>
     <div class="qr-scanner-fullscreen">
       <!-- Кнопка закрытия -->
       <button class="close-btn" @click="goBack">
@@ -19,11 +22,11 @@
         </svg>
       </button>
 
-      <!-- Контейнер для сканера Html5Qrcode -->
-      <div id="qr-reader" ref="qrReader" class="scanner-container"></div>
+      <!-- Видео сканера -->
+      <video ref="videoElement" class="scanner-video" playsinline></video>
 
       <!-- Оверлей с рамкой -->
-      <div class="scanner-overlay">
+      <div class="scanner-overlay" v-if="!selectedImage">
         <div class="scan-frame">
           <span></span>
         </div>
@@ -31,7 +34,7 @@
       </div>
 
       <!-- Контролы -->
-      <div class="controls">
+      <div class="controls" v-if="!selectedImage">
         <!-- Кнопка выбора файла -->
         <label class="control-btn file-btn">
           <input type="file" accept="image/*" @change="handleFileUpload" hidden />
@@ -39,15 +42,22 @@
         </label>
 
         <!-- Основная кнопка сканирования -->
-        <button class="scan-button" @click="manualScan" :class="{ 'pulse-animation': !isScanning }">
-          <div class="scan-button-circle">
-            <span v-if="!isScanning" class="camera-emoji">📷</span>
-          </div>
+        <button class="scan-button" @click="manualScan">
+          <div class="scan-button-circle"></div>
         </button>
 
         <!-- Кнопка фонарика -->
         <button class="control-btn torch-btn" @click="toggleTorch">
           <img src="../assets/lamp.png" alt="">
+        </button>
+      </div>
+
+      <!-- Превью выбранного изображения -->
+      <div v-if="selectedImage" class="image-preview">
+        <img :src="selectedImage" alt="selected image" />
+        <button class="close-preview" @click="clearImage">×</button>
+        <button class="scan-from-preview" @click="scanFromImage">
+          {{ t('scanner_text2') }}
         </button>
       </div>
 
@@ -73,307 +83,511 @@
   </div>
 </template>
 
-<script>
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Html5Qrcode } from 'html5-qrcode';
+<script setup>
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import jsQR from "jsqr";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import LoaderScanner from "./LoaderScanner.vue";
 import { useI18n } from 'vue-i18n';
 import { useWalletStore } from "@/stores/walletStore";
 
-export default {
-  name: 'QrScannerFullscreen',
-  setup() {
-    const { t } = useI18n();
-    const walletStore = useWalletStore();
-    return { t, walletStore };
-  },
-  data() {
-    return {
-      scanner: null,
-      html5QrCode: null,
-      isScanning: false,
-      lastResult: null,
-      showMessage: false,
-      messageText: '',
-      messageType: 'info',
-      isTorchOn: false,
-      currentCameraId: null
-    };
-  },
-  mounted() {
-    console.log('AppScanner монтирован, инициализация сканера...');
+const walletStore = useWalletStore()
+const { t } = useI18n();
+const router = useRouter();
+const videoElement = ref(null);
+const selectedImage = ref(null);
+const isTorchOn = ref(false);
+const scanResult = ref(null);
+const showMessage = ref(false);
+const messageText = ref('');
+const messageType = ref('info');
+let stream = null;
+let scanningInterval = null;
+let zxingReader = null;
+let isScanning = false;
+
+// Автоматический запуск камеры при монтировании
+onMounted(async () => {
+  try {
+    walletStore.loaderScan = false;
     
-    // Даем время для загрузки DOM, затем инициализируем сканер
-    setTimeout(() => {
-      this.initializeScanner();
-    }, 500);
-  },
-  beforeUnmount() {
-    this.stopScanner();
-  },
-  methods: {
-    initializeScanner() {
-      console.log('Инициализация Html5QrcodeScanner...');
-      
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [],
-        aspectRatio: 1.777778,
-        showTorchButtonIfSupported: false,
-        useBarCodeDetectorIfSupported: true
-      };
-
-      this.scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        config,
-        false
-      );
-
-      console.log('Html5QrcodeScanner создан, запуск...');
-      
-      // Автоматический запуск после инициализации с задержкой
-      setTimeout(() => {
-        this.startScanner();
-      }, 1000);
-    },
-
-    async startScanner() {
-      if (this.isScanning) return;
-
-      try {
-        console.log('Запуск Html5QrcodeScanner...');
-        
-        await this.scanner.render(
-          (decodedText) => this.onScanSuccess(decodedText),
-          (errorMessage) => this.onScanFailure(errorMessage)
-        );
-        
-        this.isScanning = true;
-        console.log('QR Scanner успешно запущен');
-        
-        // Проверяем что камера запустилась
-        setTimeout(() => {
-          const video = document.querySelector('#qr-reader video');
-          if (video && video.srcObject) {
-            console.log('Камера активна и отображается');
-          } else {
-            console.warn('Камера не запустилась, возможно нужно разрешение пользователя');
-            this.showMessageToUser('Для работы сканера разрешите доступ к камере', 'info', 4000);
-          }
-        }, 2000);
-        
-        // Получаем cameraId для управления фонариком
-        await this.getCurrentCameraId();
-        
-      } catch (error) {
-        console.error('Ошибка запуска сканера:', error);
-        this.isScanning = false;
-        
-        // Если ошибка связана с доступом к камере
-        if (error.message && error.message.includes('Permission denied')) {
-          this.showMessageToUser('Разрешите доступ к камере для сканирования QR кодов', 'error', 5000);
-        } else if (error.message && error.message.includes('NotFoundError')) {
-          this.showMessageToUser('Камера не найдена. Проверьте подключение камеры.', 'error', 5000);
-        } else {
-          this.showMessageToUser(this.t('camera_error'), 'error', 4000);
-        }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        goBack();
       }
-    },
-
-    async getCurrentCameraId() {
-      try {
-        // Ждем немного чтобы сканер полностью инициализировался
-        setTimeout(async () => {
-          try {
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length > 0) {
-              // Берем первую камеру (обычно задняя)
-              this.currentCameraId = cameras[0].id;
-              console.log('Current camera:', this.currentCameraId);
-            }
-          } catch (error) {
-            console.warn('Cannot get camera ID:', error);
-          }
-        }, 1000);
-      } catch (error) {
-        console.warn('Cannot access cameras:', error);
-      }
-    },
-
-    async stopScanner() {
-      if (this.scanner && this.isScanning) {
-        try {
-          await this.scanner.clear();
-          this.isScanning = false;
-          this.currentCameraId = null;
-          console.log('QR Scanner stopped');
-        } catch (error) {
-          console.error("Failed to clear scanner:", error);
-        }
-      }
-    },
-
-    async toggleTorch() {
-      if (!this.currentCameraId || !this.isScanning) {
-        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
-        return;
-      }
-
-      try {
-        this.isTorchOn = !this.isTorchOn;
-        
-        // Получаем видео элемент для управления фонариком
-        const videoElement = document.querySelector('#qr-reader video');
-        if (videoElement && videoElement.srcObject) {
-          const videoTrack = videoElement.srcObject.getVideoTracks()[0];
-          if (videoTrack && videoTrack.getCapabilities().torch) {
-            await videoTrack.applyConstraints({
-              advanced: [{ torch: this.isTorchOn }]
-            });
-            return;
-          }
-        }
-        
-        // Если не удалось через track, пробуем через constraints камеры
-        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
-        this.isTorchOn = !this.isTorchOn; // revert
-        
-      } catch (error) {
-        console.error('Torch toggle failed:', error);
-        this.isTorchOn = !this.isTorchOn; // revert on error
-        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
-      }
-    },
-
-    onScanSuccess(decodedText) {
-      if (this.lastResult === decodedText) return;
-      
-      this.lastResult = decodedText;
-      console.log('Scanned QR Code:', decodedText);
-      
-      this.showMessageToUser(this.t('qr_found'), 'success', 2000);
-      
-      // Передаем результат в store и закрываем сканер
-      setTimeout(() => {
-        this.walletStore.qrTake(this.lastResult);
-        this.goBack();
-      }, 500);
-    },
-
-    onScanFailure(error) {
-      // Игнорируем обычные ошибки сканирования
-      if (error !== 'QR code parse error, error = NotFoundException' && 
-          !error.includes('NotFoundException')) {
-        console.warn('QR Scan error:', error);
-      }
-    },
-
-    manualScan() {
-      if (!this.isScanning) {
-        // Если сканер не активен, пробуем запустить его заново
-        console.log('Попытка перезапуска сканера вручную...');
-        this.showMessageToUser('Запуск сканера...', 'info', 2000);
-        
-        // Очищаем предыдущий сканер если он есть
-        if (this.scanner) {
-          this.stopScanner();
-          setTimeout(() => {
-            this.initializeScanner();
-          }, 500);
-        } else {
-          this.initializeScanner();
-        }
-      } else {
-        // Для ручного сканирования показываем сообщение
-        this.showMessageToUser(this.t('scanning'), 'info', 2000);
-      }
-    },
-
-    handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      // Проверяем тип файла
-      if (!file.type.startsWith('image/')) {
-        this.showMessageToUser('Пожалуйста, выберите изображение', 'error', 3000);
-        return;
-      }
-
-      // Проверяем размер файла (максимум 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        this.showMessageToUser('Файл слишком большой. Максимальный размер: 10MB', 'error', 3000);
-        return;
-      }
-
-      // Сразу сканируем файл после выбора
-      this.scanFromImageFile(file);
-      
-      // Сбрасываем input
-      event.target.value = '';
-    },
-
-    async scanFromImageFile(file) {
-      this.showMessageToUser('Сканирование изображения...', 'info', 5000);
-      
-      try {
-        // Создаем временный элемент для сканирования
-        const tempDiv = document.createElement('div');
-        tempDiv.id = 'temp-scan-region';
-        tempDiv.style.display = 'none';
-        document.body.appendChild(tempDiv);
-        
-        // Используем Html5Qrcode для сканирования файла
-        const { Html5Qrcode } = await import('html5-qrcode');
-        const html5QrCode = new Html5Qrcode('temp-scan-region');
-        
-        try {
-          const result = await html5QrCode.scanFile(file, true);
-          this.onScanSuccess(result);
-          
-        } catch (scanError) {
-          this.showMessageToUser('QR-код не найден в изображении', 'error', 4000);
-        } finally {
-          // Очищаем временный элемент
-          try {
-            await html5QrCode.clear();
-          } catch (e) {
-            // Игнорируем ошибки очистки
-          }
-          if (document.getElementById('temp-scan-region')) {
-            document.body.removeChild(tempDiv);
-          }
-        }
-        
-      } catch (error) {
-        this.showMessageToUser('Ошибка сканирования изображения', 'error', 4000);
-      }
-    },
-
-    showMessageToUser(text, type = 'info', duration = 5000) {
-      this.messageText = text;
-      this.messageType = type;
-      this.showMessage = true;
-      
-      setTimeout(() => {
-        this.showMessage = false;
-      }, duration);
-    },
-
-    hideMessage() {
-      this.showMessage = false;
-    },
-
-    goBack() {
-      this.stopScanner();
-      this.$router.push({ name: 'main' });
+    };
+    document.addEventListener('keydown', handleEscape);
+    window.escapeHandler = handleEscape;
+    
+    // Инициализируем ZXing reader с оптимизацией для QR-кодов
+    try {
+      zxingReader = new BrowserMultiFormatReader();
+      // Оптимизация для QR-кодов
+      zxingReader.hints.set(2, 3); // TRY_HARDER
+      zxingReader.hints.set(3, true); // PURE_BARCODE
+      zxingReader.hints.set(5, 5); // MAX_ITERATIONS
+    } catch (error) {
+      console.warn('ZXing initialization failed:', error);
+      zxingReader = null;
     }
+    
+    // Оптимальные настройки камеры для QR-кодов терминалов
+    const constraints = {
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+        frameRate: { ideal: 30, min: 15 },
+        focusMode: "continuous"
+      },
+    };
+    
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    videoElement.value.srcObject = stream;
+    
+    videoElement.value.addEventListener('loadedmetadata', () => {
+      videoElement.value.play().then(() => {
+        console.log('Video started, resolution:', videoElement.value.videoWidth, 'x', videoElement.value.videoHeight);
+        setTimeout(() => {
+          startAutoScanning();
+        }, 500);
+      });
+    });
+    
+  } catch (error) {
+    console.error('Camera error:', error);
+    showMessageToUser(t('camera_error'), 'error', 4000);
+  }
+});
+
+onBeforeUnmount(() => {
+  try {
+    if (window.escapeHandler) {
+      document.removeEventListener('keydown', window.escapeHandler);
+      delete window.escapeHandler;
+    }
+    stopScanner();
+  } catch (error) {
+    console.error('Error during unmount:', error);
+  }
+});
+
+const startAutoScanning = () => {
+  stopAutoScanning();
+  // Более медленный интервал для лучшего качества сканирования
+  scanningInterval = setInterval(() => {
+    if (!isScanning) {
+      performQRScan();
+    }
+  }, 500);
+};
+
+const stopAutoScanning = () => {
+  try {
+    if (scanningInterval) {
+      clearInterval(scanningInterval);
+      scanningInterval = null;
+    }
+    isScanning = false;
+  } catch (error) {
+    console.error('Error stopping auto scan:', error);
+  }
+};
+
+// Оптимизированная функция для сканирования QR-кодов терминалов
+const performQRScan = async () => {
+  if (!videoElement.value || videoElement.value.readyState !== 4 || isScanning) {
+    return;
+  }
+
+  isScanning = true;
+
+  try {
+    const video = videoElement.value;
+    
+    // Создаем canvas с оптимальным размером для QR-кодов
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { 
+      willReadFrequently: true,
+      alpha: false 
+    });
+    
+    // Используем среднее разрешение для баланса скорости/качества
+    const scale = Math.min(1.0, 800 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.floor(video.videoWidth * scale);
+    canvas.height = Math.floor(video.videoHeight * scale);
+    
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    let result = null;
+    
+    // Сначала пробуем ZXing - лучше всего для терминальных QR-кодов
+    if (zxingReader) {
+      try {
+        const zxingResult = await zxingReader.decodeFromCanvas(canvas);
+        if (zxingResult && isValidTerminalQR(zxingResult.getText())) {
+          result = zxingResult.getText();
+        }
+      } catch (error) {
+        // ZXing throws error when no QR found, which is normal
+      }
+    }
+    
+    // Если ZXing не нашел, пробуем jsQR с обработкой изображения
+    if (!result) {
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Применяем легкое улучшение контраста для терминальных QR
+        const enhancedData = enhanceForTerminalQR(imageData);
+        const jsQRResult = jsQR(enhancedData.data, canvas.width, canvas.height, {
+          inversionAttempts: "dontInvert",
+          locateRegions: false, // Ускоряет сканирование
+          tryHarder: false      // Для скорости
+        });
+        
+        if (jsQRResult && isValidTerminalQR(jsQRResult.data)) {
+          result = jsQRResult.data;
+        }
+      } catch (error) {
+        console.log('jsQR scan error:', error);
+      }
+    }
+    
+    if (result) {
+      handleQRResult(result);
+    }
+    
+  } catch (error) {
+    console.log('Scan error:', error);
+  } finally {
+    isScanning = false;
+  }
+};
+
+// Функция для улучшения изображения под терминальные QR-коды
+const enhanceForTerminalQR = (imageData) => {
+  const data = imageData.data;
+  const length = data.length;
+  
+  // Легкое повышение контраста для черно-белых терминальных QR
+  for (let i = 0; i < length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    // Преобразование в grayscale с оптимальными коэффициентами
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    
+    // Легкое повышение контраста
+    const contrast = 1.3;
+    const adjusted = ((gray - 128) * contrast) + 128;
+    
+    const final = Math.max(0, Math.min(255, adjusted));
+    data[i] = data[i + 1] = data[i + 2] = final;
+  }
+  
+  return imageData;
+};
+
+// Валидация QR-кодов от терминалов
+const isValidTerminalQR = (text) => {
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return false;
+  }
+  
+  const trimmedText = text.trim();
+  
+  // Паттерны для терминальных QR-кодов
+  const terminalPatterns = [
+    /^[A-Za-z0-9+/=]{20,500}$/, // Base64-like структура
+    /^[A-Za-z0-9\-_]{20,500}$/, // URL-safe base64
+    /^(https?|tcp):\/\//,       // URL-ы
+    /^[0-9]{10,20}$/,           // Числовые коды
+    /^[A-Za-z0-9]{15,50}$/,     // Алфавитно-цифровые коды
+    /^[A-Z]{2}[0-9]+/,          // Коды начинающиеся с 2 букв и цифр
+  ];
+  
+  // Проверяем минимальную/максимальную длину для терминальных QR
+  if (trimmedText.length < 10 || trimmedText.length > 500) {
+    return false;
+  }
+  
+  // Проверяем по паттернам
+  return terminalPatterns.some(pattern => pattern.test(trimmedText));
+};
+
+const manualScan = async () => {
+  showMessageToUser(t('scanning'), 'info', 3000);
+  
+  // Останавливаем автосканирование на время ручного сканирования
+  stopAutoScanning();
+  
+  try {
+    if (!videoElement.value || videoElement.value.readyState !== 4) {
+      showMessageToUser(t('camera_not_ready'), 'error', 4000);
+      return;
+    }
+    
+    // Даем камере стабилизироваться
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    let foundResult = null;
+    
+    // Делаем 3 попытки с разными настройками
+    for (let attempt = 0; attempt < 3 && !foundResult; attempt++) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { 
+        willReadFrequently: true,
+        alpha: false 
+      });
+      
+      // Разные масштабы для разных попыток
+      const scales = [1.0, 1.2, 0.8];
+      const scale = scales[attempt];
+      
+      canvas.width = Math.floor(videoElement.value.videoWidth * scale);
+      canvas.height = Math.floor(videoElement.value.videoHeight * scale);
+      
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(videoElement.value, 0, 0, canvas.width, canvas.height);
+      
+      // Пробуем ZXing
+      if (zxingReader && !foundResult) {
+        try {
+          const result = await zxingReader.decodeFromCanvas(canvas);
+          if (result && isValidTerminalQR(result.getText())) {
+            foundResult = result.getText();
+          }
+        } catch (error) {
+          // Продолжаем пробовать другие методы
+        }
+      }
+      
+      // Пробуем jsQR с улучшением
+      if (!foundResult) {
+        try {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const enhancedData = enhanceForTerminalQR(imageData);
+          const result = jsQR(enhancedData.data, canvas.width, canvas.height, {
+            inversionAttempts: attempt === 0 ? "dontInvert" : "attemptBoth",
+            locateRegions: attempt < 2,
+            tryHarder: attempt > 0
+          });
+          
+          if (result && isValidTerminalQR(result.data)) {
+            foundResult = result.data;
+          }
+        } catch (error) {
+          console.log('jsQR manual scan error:', error);
+        }
+      }
+      
+      // Пауза между попытками
+      if (!foundResult) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    
+    if (foundResult) {
+      handleQRResult(foundResult);
+    } else {
+      showMessageToUser(t('qr_not_found_manual'), 'error', 4000);
+      // Возвращаем автосканирование
+      startAutoScanning();
+    }
+    
+  } catch (error) {
+    console.error('Manual scan error:', error);
+    showMessageToUser(t('scan_error'), 'error', 4000);
+    startAutoScanning();
+  }
+};
+
+const scanFromImage = async () => {
+  if (!selectedImage.value) return;
+
+  showMessageToUser(t('scanning'), 'info', 5000);
+  
+  const img = new Image();
+  
+  img.onload = async function () {
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { 
+        willReadFrequently: true,
+        alpha: false 
+      });
+      
+      // Используем оригинальный размер
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      let foundResult = null;
+      
+      // Пробуем ZXing первым
+      if (zxingReader) {
+        try {
+          const result = await zxingReader.decodeFromCanvas(canvas);
+          if (result && isValidTerminalQR(result.getText())) {
+            foundResult = result.getText();
+          }
+        } catch (error) {
+          // Продолжаем пробовать другие методы
+        }
+      }
+      
+      // Пробуем jsQR с улучшением
+      if (!foundResult) {
+        try {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const enhancedData = enhanceForTerminalQR(imageData);
+          const result = jsQR(enhancedData.data, canvas.width, canvas.height, {
+            inversionAttempts: "attemptBoth",
+            locateRegions: true,
+            tryHarder: true
+          });
+          
+          if (result && isValidTerminalQR(result.data)) {
+            foundResult = result.data;
+          }
+        } catch (error) {
+          console.log('jsQR image scan error:', error);
+        }
+      }
+      
+      if (foundResult) {
+        handleImageQRResult(foundResult);
+      } else {
+        showMessageToUser(t('qr_not_in_image'), 'error', 4000);
+      }
+      
+    } catch (error) {
+      console.error('Image scan error:', error);
+      showMessageToUser(t('image_process_error'), 'error', 4000);
+    }
+  };
+
+  img.onerror = function () {
+    showMessageToUser(t('image_load_error'), 'error', 4000);
+  };
+
+  img.src = selectedImage.value;
+};
+
+const handleImageQRResult = (qrData) => {
+  scanResult.value = qrData;
+  stopAutoScanning();
+  showMessageToUser(t('qr_found'), 'success', 2000);
+  setTimeout(() => {
+    walletStore.qrTake(scanResult.value);
+  }, 500);
+};
+
+const handleQRResult = (qrData) => {
+  if (scanResult.value === qrData) {
+    return;
+  }
+  
+  scanResult.value = qrData;
+  stopAutoScanning();
+  showMessageToUser(t('qr_found'), 'success', 2000);
+  setTimeout(() => {
+    walletStore.qrTake(scanResult.value);
+  }, 500);
+};
+
+const showMessageToUser = (text, type = 'info', duration = 5000) => {
+  messageText.value = text;
+  messageType.value = type;
+  showMessage.value = true;
+  
+  setTimeout(() => {
+    showMessage.value = false;
+  }, duration);
+};
+
+const hideMessage = () => {
+  showMessage.value = false;
+};
+
+const stopScanner = () => {
+  try {
+    stopAutoScanning();
+    
+    if (zxingReader) {
+      zxingReader = null;
+    }
+    
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        if (track.readyState !== 'ended') {
+          track.stop();
+        }
+      });
+      stream = null;
+    }
+  } catch (error) {
+    console.error('Error stopping scanner:', error);
+  }
+};
+
+const toggleTorch = async () => {
+  if (!stream) return;
+
+  const videoTrack = stream.getVideoTracks()[0];
+  if (!videoTrack || !("applyConstraints" in videoTrack)) {
+    return;
+  }
+
+  isTorchOn.value = !isTorchOn.value;
+  try {
+    await videoTrack.applyConstraints({
+      advanced: [{ torch: isTorchOn.value }],
+    });
+  } catch (error) {
+    console.error('Torch not supported:', error);
+  }
+};
+
+const handleFileUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  stopAutoScanning();
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    selectedImage.value = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+const clearImage = () => {
+  selectedImage.value = null;
+  startAutoScanning();
+};
+
+const goBack = () => {
+  try {
+    stopScanner();
+    scanResult.value = null;
+    selectedImage.value = null;
+    showMessage.value = false;
+    
+    setTimeout(() => {
+      router.push({ name: 'main' });
+    }, 100);
+  } catch (error) {
+    router.go(-1);
   }
 };
 </script>
 
 <style scoped>
+/* Стили остаются без изменений, так как они уже хорошо работают */
 .app-scanner-container {
   position: relative;
   width: 100%;
@@ -390,72 +604,13 @@ export default {
   z-index: 1000;
 }
 
-.scanner-container {
+.scanner-video {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
-}
-
-/* Стили для сканера - исправляем отображение видео */
-:deep(#qr-reader) {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-:deep(#qr-reader__dashboard) {
-  display: none !important;
-}
-
-:deep(#qr-reader__dashboard_section) {
-  display: none !important;
-}
-
-:deep(#qr-reader__camera_selection) {
-  display: none !important;
-}
-
-:deep(#html5-qrcode-button-camera-stop) {
-  display: none !important;
-}
-
-:deep(#html5-qrcode-button-camera-start) {
-  display: none !important;
-}
-
-:deep(#html5qr-code-full-region) {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-:deep(#reader__dashboard_section_swaplink) {
-  display: none !important;
-}
-
-:deep(#reader__dashboard_section_csr) {
-  display: none !important;
-}
-
-:deep(video) {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-}
-
-:deep(canvas) {
-  display: none !important;
+  object-fit: cover;
 }
 
 .scanner-overlay {
@@ -468,8 +623,6 @@ export default {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 2;
-  pointer-events: none;
 }
 
 .scan-frame {
@@ -531,7 +684,6 @@ export default {
   border-radius: 10px;
   border: 1px solid black;
   background: rgba(0, 0, 0, 0.4);
-  pointer-events: auto;
 }
 
 .scan-button {
@@ -541,44 +693,13 @@ export default {
   padding: 5px;
   background: transparent;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  pointer-events: auto;
-  transition: all 0.3s ease;
-}
-
-.scan-button.pulse-animation {
-  animation: pulseCamera 2s infinite;
-}
-
-@keyframes pulseCamera {
-  0% {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(255, 255, 255, 0.7);
-  }
-  70% {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 10px rgba(255, 255, 255, 0);
-  }
-  100% {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(255, 255, 255, 0);
-  }
-}
-
-.scan-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .scan-button-circle {
-  border-radius: 100%;
-  height: 60px;
-  width: 60px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.camera-emoji {
-  font-size: 24px;
-  line-height: 1;
+    border-radius: 100%;
+    height: 60px;
+    width: 60px;
+    background: #fff;
 }
 
 .controls {
@@ -592,7 +713,6 @@ export default {
   justify-content: space-between;
   padding: 0 20px;
   z-index: 2150;
-  pointer-events: none;
 }
 
 .control-btn {
@@ -605,13 +725,6 @@ export default {
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  pointer-events: auto;
-  transition: opacity 0.2s ease;
-}
-
-.control-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .control-btn img {
@@ -633,7 +746,6 @@ export default {
   z-index: 2200;
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
-  pointer-events: auto;
 }
 
 .close-btn:hover {
@@ -643,6 +755,67 @@ export default {
 .close-btn:active {
   transform: scale(0.95);
   background: rgba(0, 0, 0, 0.8);
+}
+
+.image-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-preview img {
+  max-width: 90%;
+  max-height: 70%;
+  margin-bottom: 20px;
+}
+
+.close-preview {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.scan-from-preview {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.wrap-load {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
 }
 
 .message-overlay {
@@ -808,11 +981,6 @@ export default {
   .message-text {
     font-size: 14px;
     font-weight: 600;
-  }
-  
-  .scan-frame {
-    width: 80%;
-    height: 250px;
   }
 }
 </style>

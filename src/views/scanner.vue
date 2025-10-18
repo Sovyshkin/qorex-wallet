@@ -1,5 +1,5 @@
 <script setup>
-import AppScanner from '@/components/ScannerTest.vue';
+import AppScanner from '@/components/AppScanner.vue';
 </script>
 <template>
     <AppScanner/>
