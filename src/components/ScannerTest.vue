@@ -95,6 +95,9 @@ export default {
 
     // Автоматический запуск Html5QrcodeScanner при монтировании
     onMounted(async () => {
+      // Показываем сообщение о загрузке сразу
+      showMessageToUser('Запуск камеры...', 'info', 3000);
+      
       try {
         // Убираем любые отступы на уровне body и html для полноэкранного режима
         const originalBodyStyle = document.body.style.cssText;
@@ -127,58 +130,39 @@ export default {
         document.addEventListener('keydown', handleEscape);
         window.escapeHandler = handleEscape;
         
-        // Сначала проверяем доступ к камере с улучшенными настройками
+        // Сначала проверяем доступ к камере с упрощенными настройками
         try {
           // Специальная обработка для Telegram WebApp
           const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
           
-          // Проверяем доступность медиа устройств
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            if (isTelegram) {
-              showMessageToUser('Камера недоступна в Telegram WebApp. Откройте приложение в браузере через меню → "Открыть в браузере"', 'error', 10000);
-              return;
-            }
-            throw new Error('MediaDevices API not supported');
-          }
-          
-          // Специальные настройки для Telegram WebView - более простые ограничения
-          const constraints = isTelegram ? {
-            video: {
-              facingMode: "environment"
-            }
-          } : {
+          // Упрощенные настройки для быстрого запуска
+          const constraints = {
             video: {
               facingMode: "environment",
-              width: { ideal: 1920, min: 640 },
-              height: { ideal: 1080, min: 480 },
-              frameRate: { ideal: 10, max: 15 }
+              width: { ideal: 640 }, // Уменьшаем для скорости
+              height: { ideal: 480 }
             }
           };
           
-          // В Telegram требуется больше времени для инициализации
-          if (isTelegram) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-          
+          // Быстрая проверка доступа к камере без задержек
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
           
-          // Логируем информацию о камере
-          const videoTrack = stream.getVideoTracks()[0];
-          const settings = videoTrack.getSettings();
-          
-          // Останавливаем тестовый поток
+          // Останавливаем тестовый поток сразу
           stream.getTracks().forEach(track => track.stop());
+          
+          // Убираем сообщение загрузки и показываем готовность
+          hideMessage();
           
           // Инициализируем Html5QrcodeScanner и сразу запускаем сканер
           initializeScanner();
           
-          // В Telegram требуется значительно больше времени для запуска
+          // Запускаем сканер немедленно для всех браузеров
           if (isTelegram) {
-            setTimeout(() => startScanner(), 3000);
-          } else if (window.Telegram?.WebApp) {
-            setTimeout(() => startScanner(), 1500);
+            // Для Telegram минимальная задержка
+            setTimeout(() => startScanner(), 300);
           } else {
-            startScanner();
+            // Для обычных браузеров запускаем сразу
+            setTimeout(() => startScanner(), 100);
           }
           
         } catch (cameraError) {
@@ -250,10 +234,10 @@ export default {
       const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
       
       const config = {
-        fps: isTelegram ? 10 : 15, // Более низкий FPS для Telegram
+        fps: isTelegram ? 8 : 10, // Снижаем FPS для быстрого запуска
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Для Telegram используем меньшую область сканирования
-          let minEdgePercentage = isTelegram ? 0.6 : 0.8;
+          // Уменьшаем область сканирования для ускорения
+          let minEdgePercentage = isTelegram ? 0.5 : 0.7;
           let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
           let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
           return {
@@ -262,9 +246,9 @@ export default {
           };
         },
         rememberLastUsedCamera: true,
-        // Для Telegram не ограничиваем типы сканирования
-        supportedScanTypes: isTelegram ? undefined : [0],
-        useBarCodeDetectorIfSupported: !isTelegram, // Отключаем для Telegram
+        // Упрощаем настройки для быстрого запуска
+        supportedScanTypes: [0], // Только QR коды
+        useBarCodeDetectorIfSupported: false, // Отключаем для ускорения
         aspectRatio: 1.0,
         showTorchButtonIfSupported: false,
         showZoomSliderIfSupported: false,
@@ -272,15 +256,13 @@ export default {
           facingMode: "environment" // Минимальные настройки для Telegram
         } : {
           facingMode: "environment",
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 },
-          frameRate: { ideal: 15, max: 20 },
-          focusMode: "continuous",
-          exposureMode: "continuous"
+          width: { ideal: 1280, min: 640 }, // Уменьшаем разрешение для скорости
+          height: { ideal: 720, min: 480 },
+          frameRate: { ideal: 10, max: 15 } // Снижаем FPS
         },
-        // Более простые настройки для Telegram
+        // Отключаем экспериментальные функции для стабильности
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: !isTelegram
+          useBarCodeDetectorIfSupported: false
         },
         disableFlip: false,
         verbose: false
@@ -320,11 +302,21 @@ export default {
               const video = document.querySelector('#qr-reader video');
               if (video && !video.dataset.configured) {
                 video.dataset.configured = 'true';
+                // Принудительно показываем видео немедленно
                 forceShowVideo();
+                
+                // Быстрые повторы для надёжности
+                setTimeout(() => forceShowVideo(), 50);
+                setTimeout(() => forceShowVideo(), 150);
               }
               
               // Скрываем UI элементы сразу после их создания
               hideHtml5QrcodeUI();
+            }
+            
+            // Проверяем на любые изменения атрибутов видео
+            if (mutation.type === 'attributes' && mutation.target.tagName === 'VIDEO') {
+              setTimeout(() => forceShowVideo(), 25); // Ещё быстрее
             }
           });
         });
@@ -334,12 +326,19 @@ export default {
         if (qrReaderElement) {
           videoObserver.observe(qrReaderElement, {
             childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+          });
+          
+          // Также наблюдаем за document.body для глобальных изменений
+          videoObserver.observe(document.body, {
+            childList: true,
             subtree: true
           });
         }
         
         // Автоматически нажимаем кнопку разрешения камеры если она появилась
-        // В Telegram WebView может потребоваться несколько попыток
         const tryClickPermissionButton = () => {
           const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
           if (permissionButton && permissionButton.style.display !== 'none') {
@@ -349,58 +348,62 @@ export default {
           return false;
         };
         
+        // Быстрые попытки нажатия кнопки разрешения
+        setTimeout(() => tryClickPermissionButton(), 100);
+        setTimeout(() => tryClickPermissionButton(), 300);
         setTimeout(() => tryClickPermissionButton(), 500);
-        setTimeout(() => tryClickPermissionButton(), 1000);
-        setTimeout(() => tryClickPermissionButton(), 1500);
         
-        // Дополнительные попытки для Telegram
+        // Дополнительные попытки только для Telegram
         if (isTelegram) {
-          setTimeout(() => tryClickPermissionButton(), 2000);
-          setTimeout(() => tryClickPermissionButton(), 3000);
-          setTimeout(() => tryClickPermissionButton(), 4000);
-          setTimeout(() => tryClickPermissionButton(), 5000);
-        } else if (window.Telegram?.WebApp) {
-          setTimeout(() => tryClickPermissionButton(), 2000);
-          setTimeout(() => tryClickPermissionButton(), 3000);
+          setTimeout(() => tryClickPermissionButton(), 1000);
+          setTimeout(() => tryClickPermissionButton(), 1500);
         }
         
-        // Скрываем элементы Html5QrcodeScanner UI через CSS
+        // Быстрое скрытие UI элементов
         setTimeout(() => {
           hideHtml5QrcodeUI();
-        }, 1500);
+        }, 200);
         
-        // Повторные проверки видео и повторное нажатие кнопки
+        // Быстрые проверки видео
         setTimeout(() => {
           tryClickPermissionButton();
           forceShowVideo();
-        }, 2000);
+        }, 500);
         
-        setTimeout(() => forceShowVideo(), 3000);
-        setTimeout(() => forceShowVideo(), 5000);
+        setTimeout(() => forceShowVideo(), 1000);
         
-        // Дополнительные проверки для Telegram WebView
+        // Минимальные дополнительные проверки для Telegram WebView
         if (isTelegram) {
           setTimeout(() => {
             tryClickPermissionButton();
             forceShowVideo();
-          }, 4000);
+          }, 1500);
           
-          setTimeout(() => {
-            tryClickPermissionButton();
-            forceShowVideo();
-          }, 6000);
-          
-          setTimeout(() => forceShowVideo(), 8000);
-          setTimeout(() => forceShowVideo(), 10000);
+          setTimeout(() => forceShowVideo(), 2500);
         } else if (window.Telegram?.WebApp) {
           setTimeout(() => {
             tryClickPermissionButton();
             forceShowVideo();
-          }, 4000);
+          }, 1200);
           
-          setTimeout(() => forceShowVideo(), 6000);
-          setTimeout(() => forceShowVideo(), 8000);
+          setTimeout(() => forceShowVideo(), 2000);
         }
+        
+        // Уменьшаем интервал мониторинга видео для быстрого отклика
+        const videoMonitoring = setInterval(() => {
+          if (!isScanning) {
+            clearInterval(videoMonitoring);
+            return;
+          }
+          
+          const video = document.querySelector('#qr-reader video');
+          if (video) {
+            forceShowVideo();
+          }
+        }, 1000); // Уменьшили с 2000 до 1000 мс
+        
+        // Сохраняем интервал для очистки при остановке сканера
+        window.videoMonitoringInterval = videoMonitoring;
         
 
         
@@ -412,6 +415,12 @@ export default {
 
     const stopScanner = () => {
       try {
+        // Останавливаем мониторинг видео
+        if (window.videoMonitoringInterval) {
+          clearInterval(window.videoMonitoringInterval);
+          delete window.videoMonitoringInterval;
+        }
+        
         // Останавливаем наблюдатель первым делом
         if (videoObserver) {
           videoObserver.disconnect();
@@ -453,23 +462,62 @@ export default {
     const forceShowVideo = () => {
       const video = document.querySelector('#qr-reader video');
       if (video) {
-        // Принудительно показываем видео
+        // Убираем все возможные скрывающие стили и принудительно показываем видео
         video.style.cssText = `
           display: block !important;
-          width: 100% !important;
-          height: 100% !important;
+          width: 100vw !important;
+          height: 100vh !important;
           object-fit: cover !important;
-          position: absolute !important;
+          position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           z-index: 1 !important;
           visibility: visible !important;
           opacity: 1 !important;
+          background: black !important;
+          border: none !important;
+          outline: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          transform: none !important;
+          filter: none !important;
+          min-width: 100vw !important;
+          min-height: 100vh !important;
+          max-width: none !important;
+          max-height: none !important;
         `;
+        
+        // Также принудительно настраиваем контейнер видео
+        const videoContainer = video.parentElement;
+        if (videoContainer) {
+          videoContainer.style.cssText = `
+            display: block !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            background: black !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          `;
+        }
+        
+        // Принудительно запускаем видео если оно приостановлено
+        if (video.paused) {
+          video.play().catch(() => {
+            // Игнорируем ошибки автозапуска
+          });
+        }
         
         // Добавляем обработчик события загрузки метаданных
         video.addEventListener('loadedmetadata', () => {
-          // Видео готово к работе
+          // Повторно применяем стили после загрузки
+          video.style.cssText = video.style.cssText;
         });
         
         return true;
@@ -878,10 +926,10 @@ export default {
 /* Агрессивные стили для видео Html5QrcodeScanner */
 #qr-reader video,
 #qr-reader video[style] {
-  width: 100% !important;
-  height: 100% !important;
+  width: 100vw !important;
+  height: 100vh !important;
   object-fit: cover !important;
-  position: absolute !important;
+  position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   display: block !important;
@@ -889,17 +937,29 @@ export default {
   opacity: 1 !important;
   z-index: 1 !important;
   background: black !important;
+  border: none !important;
+  outline: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  filter: none !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
 /* Убеждаемся что контейнер видео тоже видимый */
 #qr-reader > div,
 #qr-reader__scan_region,
 #qr-reader__scan_region > div {
-  width: 100% !important;
-  height: 100% !important;
+  width: 100vw !important;
+  height: 100vh !important;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+  position: relative !important;
+  background: black !important;
 }
 
 /* Показываем canvas для QR детекции */
@@ -1225,5 +1285,70 @@ export default {
     font-size: 14px;
     font-weight: 600;
   }
+}
+</style>
+
+<!-- Глобальные стили для принудительного отображения видео -->
+<style>
+/* Принудительное отображение видео Html5QrcodeScanner */
+#qr-reader video {
+  display: block !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: cover !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: black !important;
+  border: none !important;
+  outline: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  filter: none !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Контейнеры для видео */
+#qr-reader,
+#qr-reader > div,
+#qr-reader__scan_region {
+  display: block !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  position: relative !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: black !important;
+  overflow: hidden !important;
+}
+
+/* Скрытие всех UI элементов Html5QrcodeScanner */
+#qr-reader__dashboard_section,
+#qr-reader__camera_selection,
+#qr-reader__filescan_input,
+#qr-reader__header_message,
+#qr-shaded-region,
+.html5-qrcode-element,
+[id*="html5-qrcode-help"],
+[id*="qr-reader-help"],
+[class*="help"],
+[class*="info-button"],
+.qr-code-help,
+.html5-qrcode-info,
+#qr-reader > div > div:last-child,
+#qr-reader [style*="position: absolute"][style*="top"][style*="right"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
 }
 </style>
