@@ -1,1500 +1,374 @@
 <template>
   <div class="app-scanner-container">
-    <div class="wrap-load" v-if="walletStore.loaderScan">
-      <LoaderScanner/>
-    </div>
     <div class="qr-scanner-fullscreen">
-    <!-- Кнопка закрытия -->
-    <button class="close-btn" @click="goBack">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M18 6L6 18M6 6L18 18"
-          stroke="white"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-      </svg>
-    </button>
-
-    <!-- Видео сканера -->
-    <video ref="videoElement" class="scanner-video" playsinline></video>
-
-    <!-- Оверлей с рамкой -->
-    <div class="scanner-overlay">
-      <div class="scan-frame">
-        <span></span>
-      </div>
-      <div class="hint">{{ t('scanner_text') }}</div>
-    </div>
-
-    <!-- Контролы -->
-    <div class="controls">
-      <!-- Кнопка выбора файла -->
-      <label class="control-btn file-btn">
-        <input type="file" accept="image/*" @change="handleFileUpload" hidden />
-        <img src="../assets/picture.png" alt="">
-      </label>
-
-      <!-- Основная кнопка сканирования -->
-      <button class="scan-button" @click="manualScan">
-        <div class="scan-button-circle"></div>
+      <!-- Кнопка закрытия -->
+      <button class="close-btn" @click="goBack">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M18 6L6 18M6 6L18 18"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
       </button>
 
-      <!-- Кнопка фонарика -->
-      <button class="control-btn torch-btn" @click="toggleTorch">
-        <img src="../assets/lamp.png" alt="">
-      </button>
-    </div>
+      <!-- Контейнер для сканера Html5Qrcode -->
+      <div id="qr-reader" ref="qrReader" class="scanner-container"></div>
 
-    <!-- Превью выбранного изображения -->
-    <div v-if="selectedImage" class="image-preview">
-      <img :src="selectedImage" alt="selected image" />
-      <button class="close-preview" @click="clearImage">×</button>
-      <button class="scan-from-preview" @click="scanFromImage">
-        {{ t('scanner_text2') }}
-      </button>
-    </div>
-
-    <!-- Красивое сообщение для пользователя -->
-    <div v-if="showMessage" class="message-overlay" @click="hideMessage">
-      <div class="message-container" :class="messageType" @click.stop>
-        <div class="message-icon">
-          <svg v-if="messageType === 'error'" width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <svg v-else-if="messageType === 'success'" width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" class="scan-icon">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M10 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+      <!-- Оверлей с рамкой -->
+      <div class="scanner-overlay">
+        <div class="scan-frame">
+          <span></span>
         </div>
-        <div class="message-text">{{ messageText }}</div>
+        <div class="hint">{{ t('scanner_text') }}</div>
+      </div>
+
+      <!-- Контролы -->
+      <div class="controls">
+        <!-- Кнопка выбора файла -->
+        <label class="control-btn file-btn">
+          <input type="file" accept="image/*" @change="handleFileUpload" hidden />
+          <img src="../assets/picture.png" alt="">
+        </label>
+
+        <!-- Основная кнопка сканирования -->
+        <button class="scan-button" @click="manualScan" :class="{ 'pulse-animation': !isScanning }">
+          <div class="scan-button-circle">
+            <span v-if="!isScanning" class="camera-emoji">📷</span>
+          </div>
+        </button>
+
+        <!-- Кнопка фонарика -->
+        <button class="control-btn torch-btn" @click="toggleTorch">
+          <img src="../assets/lamp.png" alt="">
+        </button>
+      </div>
+
+      <!-- Красивое сообщение для пользователя -->
+      <div v-if="showMessage" class="message-overlay" @click="hideMessage">
+        <div class="message-container" :class="messageType" @click.stop>
+          <div class="message-icon">
+            <svg v-if="messageType === 'error'" width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else-if="messageType === 'success'" width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" class="scan-icon">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M10 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="message-text">{{ messageText }}</div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 </template>
 
-<script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
-import jsQR from "jsqr";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { Html5Qrcode } from "html5-qrcode";
-import LoaderScanner from "./LoaderScanner.vue";
+<script>
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useI18n } from 'vue-i18n';
 import { useWalletStore } from "@/stores/walletStore";
 
-const walletStore = useWalletStore()
-const { t } = useI18n();
-const router = useRouter();
-const videoElement = ref(null);
-const selectedImage = ref(null);
-const isTorchOn = ref(false);
-const scanResult = ref(null);
-const showMessage = ref(false);
-const messageText = ref('');
-const messageType = ref('info'); // 'info', 'success', 'error'
-let stream = null;
-let scanningInterval = null;
-let zxingReader = null;
-let cachedCanvas = null;
-let cachedCtx = null;
-
-// Автоматический запуск камеры при монтировании
-onMounted(async () => {
-  try {
-    walletStore.loaderScan = false;
-    
-    // Добавляем обработчик клавиши Escape
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        goBack();
-      }
+export default {
+  name: 'QrScannerFullscreen',
+  setup() {
+    const { t } = useI18n();
+    const walletStore = useWalletStore();
+    return { t, walletStore };
+  },
+  data() {
+    return {
+      scanner: null,
+      html5QrCode: null,
+      isScanning: false,
+      lastResult: null,
+      showMessage: false,
+      messageText: '',
+      messageType: 'info',
+      isTorchOn: false,
+      currentCameraId: null
     };
-    document.addEventListener('keydown', handleEscape);
+  },
+  mounted() {
+    console.log('AppScanner монтирован, инициализация сканера...');
     
-    // Сохраняем ссылку на обработчик для очистки
-    window.escapeHandler = handleEscape;
-    
-    // Инициализируем ZXing reader с расширенными настройками
-    try {
-      zxingReader = new BrowserMultiFormatReader();
-      // Настраиваем ZXing для лучшего распознавания
-      zxingReader.hints.set(2, 3); // TRY_HARDER
-      zxingReader.hints.set(3, true); // PURE_BARCODE
-    } catch (error) {
-      zxingReader = null;
-    }
-    
-    // Запрашиваем камеру с высоким разрешением и автофокусом
-    const constraints = {
-      video: {
-        facingMode: "environment",
-        width: { ideal: 1920, min: 640 },
-        height: { ideal: 1080, min: 480 },
-        focusMode: "continuous",
-        whiteBalanceMode: "continuous",
-        exposureMode: "continuous"
-      },
-    };
-    
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-    videoElement.value.srcObject = stream;
-    
-    // Ждем загрузки метаданных перед началом воспроизведения
-    videoElement.value.addEventListener('loadedmetadata', () => {
-      videoElement.value.play().then(() => {
-        // Запускаем автоматическое сканирование только после успешного запуска видео
-        setTimeout(() => {
-          startAutoScanning();
-        }, 500); // Небольшая задержка для стабилизации видеопотока
-      });
-    });
-    
-  } catch (error) {
-    // Fallback к базовым настройкам
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
-      });
-      videoElement.value.srcObject = stream;
-      await videoElement.value.play();
-      startAutoScanning();
-    } catch (fallbackError) {
-      // Критическая ошибка камеры
-    }
-  }
-});
-
-// Остановка при размонтировании
-onBeforeUnmount(() => {
-  try {
-    // Убираем обработчик Escape
-    if (window.escapeHandler) {
-      document.removeEventListener('keydown', window.escapeHandler);
-      delete window.escapeHandler;
-    }
-    
-    stopScanner();
-  } catch (error) {
-    // Ошибка при размонтировании компонента
-  }
-});
-
-// Функция автоматического сканирования
-const startAutoScanning = () => {
-  // Запускаем наше мульти-библиотечное сканирование
-  scanningInterval = setInterval(() => {
-    performScan();
-  }, 150); // Частое сканирование для лучшей отзывчивости
-};
-
-// Функция остановки автоматического сканирования
-const stopAutoScanning = () => {
-  try {
-    if (scanningInterval) {
-      clearInterval(scanningInterval);
-      scanningInterval = null;
-    }
-  } catch (error) {
-    // Ошибка в stopAutoScanning
-  }
-};
-
-// Функция безопасного клонирования ImageData
-const cloneImageData = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const clonedData = new Uint8ClampedArray(imageData.data);
-  return {
-    data: clonedData,
-    width: imageData.width,
-    height: imageData.height
-  };
-};
-
-// Функция преобразования в оттенки серого
-const convertToGrayscale = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const length = data.length;
-  
-  for (let i = 0; i < length; i += 4) {
-    // Используем стандартную формулу luminance для оттенков серого
-    const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-    data[i] = gray;     // R
-    data[i + 1] = gray; // G
-    data[i + 2] = gray; // B
-    // data[i + 3] остается без изменений (alpha)
-  }
-  
-  return imageData;
-};
-
-// Функция билинейной интерполяции для масштабирования
-const bilinearScale = (imageData, newWidth, newHeight) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const { data: srcData, width: srcWidth, height: srcHeight } = imageData;
-  const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
-  
-  const xRatio = srcWidth / newWidth;
-  const yRatio = srcHeight / newHeight;
-  
-  for (let y = 0; y < newHeight; y++) {
-    for (let x = 0; x < newWidth; x++) {
-      const srcX = x * xRatio;
-      const srcY = y * yRatio;
-      
-      const x1 = Math.floor(srcX);
-      const y1 = Math.floor(srcY);
-      const x2 = Math.min(x1 + 1, srcWidth - 1);
-      const y2 = Math.min(y1 + 1, srcHeight - 1);
-      
-      const dx = srcX - x1;
-      const dy = srcY - y1;
-      
-      for (let c = 0; c < 4; c++) {
-        const idx1 = (y1 * srcWidth + x1) * 4 + c;
-        const idx2 = (y1 * srcWidth + x2) * 4 + c;
-        const idx3 = (y2 * srcWidth + x1) * 4 + c;
-        const idx4 = (y2 * srcWidth + x2) * 4 + c;
-        
-        const val1 = srcData[idx1] * (1 - dx) + srcData[idx2] * dx;
-        const val2 = srcData[idx3] * (1 - dx) + srcData[idx4] * dx;
-        const finalVal = val1 * (1 - dy) + val2 * dy;
-        
-        newData[(y * newWidth + x) * 4 + c] = Math.round(finalVal);
-      }
-    }
-  }
-  
-  return {
-    data: newData,
-    width: newWidth,
-    height: newHeight
-  };
-};
-
-// Функция повышения резкости (Unsharp Mask)
-const sharpenImage = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  const newData = new Uint8ClampedArray(data.length);
-  
-  // Ядро для повышения резкости
-  const kernel = [
-    [ 0, -1,  0],
-    [-1,  5, -1],
-    [ 0, -1,  0]
-  ];
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      for (let c = 0; c < 3; c++) { // RGB каналы
-        let sum = 0;
-        
-        for (let ky = -1; ky <= 1; ky++) {
-          for (let kx = -1; kx <= 1; kx++) {
-            const idx = ((y + ky) * width + (x + kx)) * 4 + c;
-            sum += data[idx] * kernel[ky + 1][kx + 1];
-          }
-        }
-        
-        const idx = (y * width + x) * 4 + c;
-        newData[idx] = Math.max(0, Math.min(255, sum));
-      }
-      
-      // Копируем альфа канал без изменений
-      const alphaIdx = (y * width + x) * 4 + 3;
-      newData[alphaIdx] = data[alphaIdx];
-    }
-  }
-  
-  // Копируем границы
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (y === 0 || y === height - 1 || x === 0 || x === width - 1) {
-        const idx = (y * width + x) * 4;
-        for (let c = 0; c < 4; c++) {
-          newData[idx + c] = data[idx + c];
-        }
-      }
-    }
-  }
-  
-  return {
-    data: newData,
-    width: width,
-    height: height
-  };
-};
-
-// Функция адаптивного выравнивания гистограммы (CLAHE)
-const claheEnhancement = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  
-  // Размер тайла для локальной обработки
-  const tileSize = 64;
-  const clipLimit = 3.0;
-  
-  // Обрабатываем каждый тайл отдельно
-  for (let tileY = 0; tileY < height; tileY += tileSize) {
-    for (let tileX = 0; tileX < width; tileX += tileSize) {
-      const tileEndY = Math.min(tileY + tileSize, height);
-      const tileEndX = Math.min(tileX + tileSize, width);
-      
-      // Создаем гистограмму для тайла
-      const histogram = new Array(256).fill(0);
-      let pixelCount = 0;
-      
-      for (let y = tileY; y < tileEndY; y++) {
-        for (let x = tileX; x < tileEndX; x++) {
-          const idx = (y * width + x) * 4;
-          const brightness = Math.round((data[idx] + data[idx + 1] + data[idx + 2]) / 3);
-          histogram[brightness]++;
-          pixelCount++;
-        }
-      }
-      
-      // Применяем ограничение контрастности
-      const clipValue = Math.floor(clipLimit * pixelCount / 256);
-      let clippedPixels = 0;
-      
-      for (let i = 0; i < 256; i++) {
-        if (histogram[i] > clipValue) {
-          clippedPixels += histogram[i] - clipValue;
-          histogram[i] = clipValue;
-        }
-      }
-      
-      // Перераспределяем обрезанные пиксели
-      const redistributed = Math.floor(clippedPixels / 256);
-      for (let i = 0; i < 256; i++) {
-        histogram[i] += redistributed;
-      }
-      
-      // Создаем кумулятивную функцию распределения
-      const cdf = new Array(256);
-      cdf[0] = histogram[0];
-      for (let i = 1; i < 256; i++) {
-        cdf[i] = cdf[i - 1] + histogram[i];
-      }
-      
-      // Нормализуем CDF
-      for (let i = 0; i < 256; i++) {
-        cdf[i] = Math.round((cdf[i] * 255) / pixelCount);
-      }
-      
-      // Применяем выравнивание к пикселям тайла
-      for (let y = tileY; y < tileEndY; y++) {
-        for (let x = tileX; x < tileEndX; x++) {
-          const idx = (y * width + x) * 4;
-          const brightness = Math.round((data[idx] + data[idx + 1] + data[idx + 2]) / 3);
-          const newBrightness = cdf[brightness];
-          
-          // Применяем новую яркость с сохранением цветового соотношения
-          const ratio = newBrightness / Math.max(brightness, 1);
-          data[idx] = Math.min(255, Math.round(data[idx] * ratio));
-          data[idx + 1] = Math.min(255, Math.round(data[idx + 1] * ratio));
-          data[idx + 2] = Math.min(255, Math.round(data[idx + 2] * ratio));
-        }
-      }
-    }
-  }
-  
-  return imageData;
-};
-
-// Функция поворота изображения на заданный угол
-const rotateImage = (imageData, angle) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const { data, width, height } = imageData;
-  const radians = (angle * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  
-  // Вычисляем новые размеры
-  const newWidth = Math.ceil(Math.abs(width * cos) + Math.abs(height * sin));
-  const newHeight = Math.ceil(Math.abs(width * sin) + Math.abs(height * cos));
-  
-  const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const newCenterX = newWidth / 2;
-  const newCenterY = newHeight / 2;
-  
-  for (let y = 0; y < newHeight; y++) {
-    for (let x = 0; x < newWidth; x++) {
-      // Обратное преобразование координат
-      const relX = x - newCenterX;
-      const relY = y - newCenterY;
-      
-      const srcX = Math.round(relX * cos + relY * sin + centerX);
-      const srcY = Math.round(-relX * sin + relY * cos + centerY);
-      
-      if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-        const srcIdx = (srcY * width + srcX) * 4;
-        const dstIdx = (y * newWidth + x) * 4;
-        
-        for (let c = 0; c < 4; c++) {
-          newData[dstIdx + c] = data[srcIdx + c];
-        }
-      } else {
-        // Заполняем белым цветом
-        const dstIdx = (y * newWidth + x) * 4;
-        newData[dstIdx] = 255;     // R
-        newData[dstIdx + 1] = 255; // G
-        newData[dstIdx + 2] = 255; // B
-        newData[dstIdx + 3] = 255; // A
-      }
-    }
-  }
-  
-  return {
-    data: newData,
-    width: newWidth,
-    height: newHeight
-  };
-};
-
-// Функция детекции и коррекции перспективы (упрощенная)
-const correctPerspective = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  // Упрощенная коррекция перспективы через поиск контуров
-  const { data, width, height } = imageData;
-  
-  // Находим края изображения с помощью оператора Собеля
-  const sobelX = [
-    [-1, 0, 1],
-    [-2, 0, 2],
-    [-1, 0, 1]
-  ];
-  
-  const sobelY = [
-    [-1, -2, -1],
-    [ 0,  0,  0],
-    [ 1,  2,  1]
-  ];
-  
-  const edges = new Array(width * height).fill(0);
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      let gx = 0, gy = 0;
-      
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
-          const idx = ((y + ky) * width + (x + kx)) * 4;
-          const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-          
-          gx += brightness * sobelX[ky + 1][kx + 1];
-          gy += brightness * sobelY[ky + 1][kx + 1];
-        }
-      }
-      
-      const magnitude = Math.sqrt(gx * gx + gy * gy);
-      edges[y * width + x] = magnitude;
-    }
-  }
-  
-  // Применяем коррекцию наклона (простое выравнивание)
-  const threshold = 50;
-  let sumAngle = 0;
-  let angleCount = 0;
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      if (edges[y * width + x] > threshold) {
-        // Вычисляем градиент направления
-        const gx = edges[y * width + x + 1] - edges[y * width + x - 1];
-        const gy = edges[(y + 1) * width + x] - edges[(y - 1) * width + x];
-        
-        if (Math.abs(gx) > 10) {
-          const angle = Math.atan2(gy, gx);
-          sumAngle += angle;
-          angleCount++;
-        }
-      }
-    }
-  }
-  
-  if (angleCount > 0) {
-    const avgAngle = sumAngle / angleCount;
-    const degrees = (avgAngle * 180) / Math.PI;
-    
-    // Корректируем только если угол значительный
-    if (Math.abs(degrees) > 2 && Math.abs(degrees) < 45) {
-      return rotateImage(imageData, -degrees);
-    }
-  }
-  
-  return imageData;
-};
-
-// Функция автоматической коррекции яркости и контрастности
-const autoAdjustBrightnessContrast = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const length = data.length;
-  
-  // Анализируем гистограмму для определения оптимальной коррекции
-  let histogram = new Array(256).fill(0);
-  let totalPixels = 0;
-  let sumBrightness = 0;
-  
-  for (let i = 0; i < length; i += 4) {
-    const brightness = Math.round((data[i] + data[i + 1] + data[i + 2]) / 3);
-    histogram[brightness]++;
-    sumBrightness += brightness;
-    totalPixels++;
-  }
-  
-  const avgBrightness = sumBrightness / totalPixels;
-  
-  // Определяем нужную коррекцию
-  let brightnessFactor = 1.0;
-  let contrastFactor = 1.0;
-  
-  if (avgBrightness < 80) {
-    // Слишком темное изображение
-    brightnessFactor = 1.5;
-    contrastFactor = 1.3;
-  } else if (avgBrightness > 180) {
-    // Слишком светлое изображение
-    brightnessFactor = 0.7;
-    contrastFactor = 1.4;
-  } else {
-    // Нормальная яркость, но можем улучшить контраст
-    contrastFactor = 1.2;
-  }
-  
-  // Применяем коррекцию
-  for (let i = 0; i < length; i += 4) {
-    for (let c = 0; c < 3; c++) { // RGB каналы
-      let pixel = data[i + c];
-      
-      // Коррекция яркости
-      pixel = pixel * brightnessFactor;
-      
-      // Коррекция контрастности
-      pixel = ((pixel - 128) * contrastFactor) + 128;
-      
-      // Ограничиваем значения
-      data[i + c] = Math.max(0, Math.min(255, pixel));
-    }
-  }
-  
-  return imageData;
-};
-
-// Функция удаления шума методом медианной фильтрации
-const medianFilter = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  const newData = new Uint8ClampedArray(data.length);
-  
-  // Копируем исходные данные
-  for (let i = 0; i < data.length; i++) {
-    newData[i] = data[i];
-  }
-  
-  // Применяем медианный фильтр 3x3
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      for (let c = 0; c < 3; c++) { // RGB каналы
-        const values = [];
-        
-        // Собираем значения из окна 3x3
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const idx = ((y + dy) * width + (x + dx)) * 4 + c;
-            values.push(data[idx]);
-          }
-        }
-        
-        // Сортируем и берем медиану
-        values.sort((a, b) => a - b);
-        const medianValue = values[4]; // Медиана из 9 элементов
-        
-        const idx = (y * width + x) * 4 + c;
-        newData[idx] = medianValue;
-      }
-      
-      // Копируем альфа канал
-      const alphaIdx = (y * width + x) * 4 + 3;
-      newData[alphaIdx] = data[alphaIdx];
-    }
-  }
-  
-  return {
-    data: newData,
-    width: width,
-    height: height
-  };
-};
-
-// Функция улучшения контрастности
-const enhanceContrast = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const length = data.length;
-  
-  // Находим мин/макс значения для растягивания гистограммы
-  let min = 255, max = 0;
-  for (let i = 0; i < length; i += 4) {
-    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    if (brightness < min) min = brightness;
-    if (brightness > max) max = brightness;
-  }
-  
-  // Избегаем деления на ноль
-  if (max === min) return imageData;
-  
-  const contrast = 255 / (max - min);
-  
-  for (let i = 0; i < length; i += 4) {
-    // Применяем к каждому каналу
-    for (let j = 0; j < 3; j++) {
-      const index = i + j;
-      data[index] = Math.max(0, Math.min(255, (data[index] - min) * contrast));
-    }
-  }
-  
-  return imageData;
-};
-
-// Функция бинаризации (черно-белое)
-const binarizeImage = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const length = data.length;
-  
-  // Вычисляем порог автоматически (метод Оцу)
-  let histogram = new Array(256).fill(0);
-  for (let i = 0; i < length; i += 4) {
-    const brightness = Math.round((data[i] + data[i + 1] + data[i + 2]) / 3);
-    histogram[brightness]++;
-  }
-  
-  let total = length / 4;
-  let sum = 0;
-  for (let i = 0; i < 256; i++) {
-    sum += i * histogram[i];
-  }
-  
-  let sumB = 0;
-  let wB = 0;
-  let wF = 0;
-  let maxVariance = 0;
-  let threshold = 128; // значение по умолчанию
-  
-  for (let i = 0; i < 256; i++) {
-    wB += histogram[i];
-    if (wB === 0) continue;
-    
-    wF = total - wB;
-    if (wF === 0) break;
-    
-    sumB += i * histogram[i];
-    
-    let mB = sumB / wB;
-    let mF = (sum - sumB) / wF;
-    
-    let variance = wB * wF * (mB - mF) * (mB - mF);
-    
-    if (variance > maxVariance) {
-      maxVariance = variance;
-      threshold = i;
-    }
-  }
-  
-  // Применяем порог
-  for (let i = 0; i < length; i += 4) {
-    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    const value = brightness > threshold ? 255 : 0;
-    
-    data[i] = value;     // R
-    data[i + 1] = value; // G
-    data[i + 2] = value; // B
-  }
-  
-  return imageData;
-};
-
-// Функция размытия по Гауссу для уменьшения шума
-const applyGaussianBlur = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  const newData = new Uint8ClampedArray(data.length);
-  
-  // Копируем исходные данные
-  for (let i = 0; i < data.length; i++) {
-    newData[i] = data[i];
-  }
-  
-  // Простое ядро размытия 3x3
-  const kernel = [
-    [1, 2, 1],
-    [2, 4, 2],
-    [1, 2, 1]
-  ];
-  const kernelSum = 16;
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      let r = 0, g = 0, b = 0;
-      
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
-          const idx = ((y + ky) * width + (x + kx)) * 4;
-          const weight = kernel[ky + 1][kx + 1];
-          
-          r += data[idx] * weight;
-          g += data[idx + 1] * weight;
-          b += data[idx + 2] * weight;
-        }
-      }
-      
-      const idx = (y * width + x) * 4;
-      newData[idx] = Math.round(r / kernelSum);
-      newData[idx + 1] = Math.round(g / kernelSum);
-      newData[idx + 2] = Math.round(b / kernelSum);
-      newData[idx + 3] = data[idx + 3]; // альфа канал остается без изменений
-    }
-  }
-  
-  // Создаем новый ImageData объект правильно
-  const result = {
-    data: newData,
-    width: width,
-    height: height
-  };
-  
-  return result;
-};
-
-// Функция адаптивной бинаризации
-const adaptiveBinarization = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  const windowSize = 15; // Размер окна для адаптивной бинаризации
-  const c = 7; // Константа, вычитаемая из среднего
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      
-      // Вычисляем среднее значение в окне
-      let sum = 0;
-      let count = 0;
-      
-      for (let dy = -Math.floor(windowSize/2); dy <= Math.floor(windowSize/2); dy++) {
-        for (let dx = -Math.floor(windowSize/2); dx <= Math.floor(windowSize/2); dx++) {
-          const ny = y + dy;
-          const nx = x + dx;
-          
-          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            const nIdx = (ny * width + nx) * 4;
-            const brightness = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
-            sum += brightness;
-            count++;
-          }
-        }
-      }
-      
-      const mean = sum / count;
-      const threshold = mean - c;
-      const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-      const value = brightness > threshold ? 255 : 0;
-      
-      data[idx] = value;     // R
-      data[idx + 1] = value; // G
-      data[idx + 2] = value; // B
-    }
-  }
-  
-  return imageData;
-};
-
-// Функция морфологических операций (эрозия и дилатация)
-const morphologyOperations = (imageData) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  // Сначала применяем бинаризацию
-  const binary = binarizeImage(cloneImageData(imageData));
-  if (!binary) return null;
-  
-  const data = binary.data;
-  const width = binary.width;
-  const height = binary.height;
-  const newData = new Uint8ClampedArray(data.length);
-  
-  // Структурный элемент 3x3
-  const kernel = [
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],  [0, 0],  [0, 1],
-    [1, -1],  [1, 0],  [1, 1]
-  ];
-  
-  // Эрозия (удаляет шум)
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = (y * width + x) * 4;
-      let minValue = 255;
-      
-      for (const [ky, kx] of kernel) {
-        const ny = y + ky;
-        const nx = x + kx;
-        const nIdx = (ny * width + nx) * 4;
-        minValue = Math.min(minValue, data[nIdx]);
-      }
-      
-      newData[idx] = minValue;
-      newData[idx + 1] = minValue;
-      newData[idx + 2] = minValue;
-      newData[idx + 3] = data[idx + 3];
-    }
-  }
-  
-  // Дилатация (восстанавливает форму)
-  const tempData = new Uint8ClampedArray(newData);
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = (y * width + x) * 4;
-      let maxValue = 0;
-      
-      for (const [ky, kx] of kernel) {
-        const ny = y + ky;
-        const nx = x + kx;
-        const nIdx = (ny * width + nx) * 4;
-        maxValue = Math.max(maxValue, tempData[nIdx]);
-      }
-      
-      newData[idx] = maxValue;
-      newData[idx + 1] = maxValue;
-      newData[idx + 2] = maxValue;
-      newData[idx + 3] = tempData[idx + 3];
-    }
-  }
-  
-  return {
-    data: newData,
-    width: width,
-    height: height
-  };
-};
-
-// Функция гамма-коррекции
-const applyGammaCorrection = (imageData, gamma) => {
-  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-    return null;
-  }
-  
-  const data = imageData.data;
-  const length = data.length;
-  
-  // Создаем таблицу гамма-коррекции
-  const gammaTable = new Array(256);
-  for (let i = 0; i < 256; i++) {
-    gammaTable[i] = Math.pow(i / 255, gamma) * 255;
-  }
-  
-  for (let i = 0; i < length; i += 4) {
-    data[i] = gammaTable[data[i]];         // R
-    data[i + 1] = gammaTable[data[i + 1]]; // G
-    data[i + 2] = gammaTable[data[i + 2]]; // B
-  }
-  
-  return imageData;
-};
-
-// Функция показа красивого сообщения
-const showMessageToUser = (text, type = 'info', duration = 5000) => {
-  messageText.value = text;
-  messageType.value = type;
-  showMessage.value = true;
-  
-  setTimeout(() => {
-    showMessage.value = false;
-  }, duration);
-};
-
-// Функция скрытия сообщения
-const hideMessage = () => {
-  showMessage.value = false;
-};
-
-// Общая функция обработки результата QR-кода
-const handleQRResult = (qrData) => {
-  
-  if (scanResult.value === qrData) {
-    return; // Избегаем дублирования
-  }
-  
-  scanResult.value = qrData;
-  stopAutoScanning();
-  
-  if (isValidUrl(scanResult.value)) {
-    showMessageToUser(t('qr_found'), 'success', 2000);
+    // Даем время для загрузки DOM, затем инициализируем сканер
     setTimeout(() => {
-      walletStore.qrTake(scanResult.value);
+      this.initializeScanner();
     }, 500);
-  } else {
-    showMessageToUser(t('not_a_link'), 'error', 3000);
-    // Возобновляем сканирование если это не ссылка
-    setTimeout(() => {
-      scanResult.value = null;
-      startAutoScanning();
-    }, 5000);
-  }
-};
-
-// Общая функция сканирования с тремя ключевыми библиотеками
-const performScan = async () => {
-  if (!videoElement.value || videoElement.value.readyState !== 4) return;
-
-  try {    
-    // Используем кешированный canvas
-    if (!cachedCanvas) {
-      cachedCanvas = document.createElement("canvas");
-      cachedCtx = cachedCanvas.getContext("2d", { willReadFrequently: true });
-    }
-    
-    const canvas = cachedCanvas;
-    const ctx = cachedCtx;
-    
-    // Оптимальное разрешение для качества и производительности
-    const video = videoElement.value;
-    const scale = Math.min(1280 / video.videoWidth, 1280 / video.videoHeight, 2);
-    
-    const newWidth = Math.round(video.videoWidth * scale);
-    const newHeight = Math.round(video.videoHeight * scale);
-    
-    if (canvas.width !== newWidth || canvas.height !== newHeight) {
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-    }
-    
-    // Высокое качество отрисовки
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Правильная последовательность как в рабочем примере
-    
-    // Попытка 1: Html5Qrcode (основная библиотека)
-    try {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
-      const file = new File([blob], 'scan.png', { type: 'image/png' });
-      const result = await Html5Qrcode.scanFile(file, true);
-      if (result && isValidUrl(result)) {
-        handleQRResult(result);
-        return;
-      }
-    } catch (e) {
-      // Html5Qrcode не смог найти QR, переходим к jsQR
-    }
-    
-    // Попытка 2: jsQR как fallback (как в примере)
-    try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "attemptBoth",
-        locateRegions: true,
-        tryHarder: true
-      });
-      if (result?.data && isValidUrl(result.data)) {
-        handleQRResult(result.data);
-        return;
-      }
-    } catch (e) {
-      // jsQR тоже не смог найти QR
-    }
-    
-    // Попытка 3: ZXing как последний вариант для сложных случаев
-    try {
-      if (zxingReader) {
-        const result = await zxingReader.decodeFromCanvas(canvas);
-        if (result?.getText() && isValidUrl(result.getText())) {
-          handleQRResult(result.getText());
-          return;
-        }
-      }
-    } catch (e) {
-      // ZXing тоже не смог найти QR
-    }
-    
-  } catch (error) {
-    // Ошибка сканирования
-  }
-};
-
-const manualScan = async () => {
-  // Показываем сообщение с достаточным временем для чтения
-  showMessageToUser(t('scanning'), 'info', 2000);
-  
-  // Небольшая задержка, чтобы пользователь успел прочитать сообщение
-  setTimeout(async () => {
-    try {    
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  },
+  beforeUnmount() {
+    this.stopScanner();
+  },
+  methods: {
+    initializeScanner() {
+      console.log('Инициализация Html5QrcodeScanner...');
       
-      if (!videoElement.value || videoElement.value.readyState !== 4) {
-        showMessageToUser(t('camera_not_ready'), 'error', 4000);
-        return;
-      }
-      
-      // Оптимальное разрешение как в рабочем примере
-      const video = videoElement.value;
-      const scale = Math.min(1920 / video.videoWidth, 1920 / video.videoHeight, 3);
-      
-      canvas.width = video.videoWidth * scale;
-      canvas.height = video.videoHeight * scale;
-      
-      // Максимальное качество отрисовки
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Создаем файл как в рабочем примере
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
-      const file = new File([blob], 'manual-scan.png', { type: 'image/png' });
-      
-      // Основная функция сканирования как в примере
-      const scanWithFallback = async (file, canvas) => {
-        // Попытка 1: Html5Qrcode (основная библиотека как в примере)
-        try {
-          const result = await Html5Qrcode.scanFile(file, true);
-          if (result) return result;
-        } catch (e) {
-          // Html5Qrcode failed, trying jsQR...
-        }
-        
-        // Попытка 2: jsQR как fallback (точно как в примере)
-        try {
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const result = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "attemptBoth",
-            locateRegions: true,
-            tryHarder: true
-          });
-          if (result?.data) return result.data;
-        } catch (e) {
-          // jsQR failed, trying ZXing...
-        }
-        
-        // Попытка 3: ZXing для особо сложных случаев
-        try {
-          if (zxingReader) {
-            const result = await zxingReader.decodeFromCanvas(canvas);
-            if (result?.getText()) return result.getText();
-          }
-        } catch (e) {
-          // ZXing failed
-        }
-        
-        return null;
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        rememberLastUsedCamera: true,
+        supportedScanTypes: [],
+        aspectRatio: 1.777778,
+        showTorchButtonIfSupported: false,
+        useBarCodeDetectorIfSupported: true
       };
+
+      this.scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        config,
+        false
+      );
+
+      console.log('Html5QrcodeScanner создан, запуск...');
       
-      // Выполняем сканирование
-      const result = await scanWithFallback(file, canvas);
-      
-      if (result && isValidUrl(result)) {
-        handleQRResult(result);
-      } else {
-        // Если основные методы не сработали, пробуем с обработкой изображения
+      // Автоматический запуск после инициализации с задержкой
+      setTimeout(() => {
+        this.startScanner();
+      }, 1000);
+    },
+
+    async startScanner() {
+      if (this.isScanning) return;
+
+      try {
+        console.log('Запуск Html5QrcodeScanner...');
         
-        // Обработка изображения для улучшения читаемости
-        const processedAttempts = [
-          // CLAHE enhancement
-          () => {
-            try {
-              const baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              const processed = claheEnhancement(cloneImageData(baseImageData));
-              if (!processed) return null;
-              
-              const result = jsQR(processed.data, processed.width, processed.height, {
-                inversionAttempts: "attemptBoth",
-                locateRegions: true,
-                tryHarder: true
-              });
-              return result?.data;
-            } catch (e) {
-              return null;
-            }
-          },
-          
-          // Grayscale + CLAHE + Sharpen
-          () => {
-            try {
-              const baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              let processed = convertToGrayscale(cloneImageData(baseImageData));
-              if (!processed) return null;
-              
-              processed = claheEnhancement(processed);
-              if (!processed) return null;
-              
-              processed = sharpenImage(processed);
-              if (!processed) return null;
-              
-              const result = jsQR(processed.data, processed.width, processed.height, {
-                inversionAttempts: "attemptBoth",
-                locateRegions: true,
-                tryHarder: true
-              });
-              return result?.data;
-            } catch (e) {
-              return null;
-            }
+        await this.scanner.render(
+          (decodedText) => this.onScanSuccess(decodedText),
+          (errorMessage) => this.onScanFailure(errorMessage)
+        );
+        
+        this.isScanning = true;
+        console.log('QR Scanner успешно запущен');
+        
+        // Проверяем что камера запустилась
+        setTimeout(() => {
+          const video = document.querySelector('#qr-reader video');
+          if (video && video.srcObject) {
+            console.log('Камера активна и отображается');
+          } else {
+            console.warn('Камера не запустилась, возможно нужно разрешение пользователя');
+            this.showMessageToUser('Для работы сканера разрешите доступ к камере', 'info', 4000);
           }
-        ];
+        }, 2000);
         
-        // Пробуем обработанные варианты
-        for (const attempt of processedAttempts) {
-          const processedResult = attempt();
-          if (processedResult && isValidUrl(processedResult)) {
-            handleQRResult(processedResult);
+        // Получаем cameraId для управления фонариком
+        await this.getCurrentCameraId();
+        
+      } catch (error) {
+        console.error('Ошибка запуска сканера:', error);
+        this.isScanning = false;
+        
+        // Если ошибка связана с доступом к камере
+        if (error.message && error.message.includes('Permission denied')) {
+          this.showMessageToUser('Разрешите доступ к камере для сканирования QR кодов', 'error', 5000);
+        } else if (error.message && error.message.includes('NotFoundError')) {
+          this.showMessageToUser('Камера не найдена. Проверьте подключение камеры.', 'error', 5000);
+        } else {
+          this.showMessageToUser(this.t('camera_error'), 'error', 4000);
+        }
+      }
+    },
+
+    async getCurrentCameraId() {
+      try {
+        // Ждем немного чтобы сканер полностью инициализировался
+        setTimeout(async () => {
+          try {
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length > 0) {
+              // Берем первую камеру (обычно задняя)
+              this.currentCameraId = cameras[0].id;
+              console.log('Current camera:', this.currentCameraId);
+            }
+          } catch (error) {
+            console.warn('Cannot get camera ID:', error);
+          }
+        }, 1000);
+      } catch (error) {
+        console.warn('Cannot access cameras:', error);
+      }
+    },
+
+    async stopScanner() {
+      if (this.scanner && this.isScanning) {
+        try {
+          await this.scanner.clear();
+          this.isScanning = false;
+          this.currentCameraId = null;
+          console.log('QR Scanner stopped');
+        } catch (error) {
+          console.error("Failed to clear scanner:", error);
+        }
+      }
+    },
+
+    async toggleTorch() {
+      if (!this.currentCameraId || !this.isScanning) {
+        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
+        return;
+      }
+
+      try {
+        this.isTorchOn = !this.isTorchOn;
+        
+        // Получаем видео элемент для управления фонариком
+        const videoElement = document.querySelector('#qr-reader video');
+        if (videoElement && videoElement.srcObject) {
+          const videoTrack = videoElement.srcObject.getVideoTracks()[0];
+          if (videoTrack && videoTrack.getCapabilities().torch) {
+            await videoTrack.applyConstraints({
+              advanced: [{ torch: this.isTorchOn }]
+            });
             return;
           }
         }
         
-        // Если ничего не найдено
-        showMessageToUser(t('qr_not_found_manual'), 'error', 6000);
+        // Если не удалось через track, пробуем через constraints камеры
+        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
+        this.isTorchOn = !this.isTorchOn; // revert
+        
+      } catch (error) {
+        console.error('Torch toggle failed:', error);
+        this.isTorchOn = !this.isTorchOn; // revert on error
+        this.showMessageToUser(this.t('torch_not_supported'), 'error', 3000);
       }
-      
-    } catch (error) {
-      showMessageToUser(t('scan_error'), 'error', 4000);
-    }
-  }, 300);
-};
+    },
 
-// Функция для проверки, является ли строка URL
-const isValidUrl = (string) => {
-  try {
-    new URL(string);
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
-const scanFromImage = async () => {
-  if (!selectedImage.value) return;
-
-  const img = new Image();
-  
-  img.onload = async function () {
-    try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    onScanSuccess(decodedText) {
+      if (this.lastResult === decodedText) return;
       
-      // Оптимальное разрешение для наилучшего качества
-      const scale = Math.min(2048 / img.width, 2048 / img.height, 3);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+      this.lastResult = decodedText;
+      console.log('Scanned QR Code:', decodedText);
       
-      // Настройки максимального качества отрисовки
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      this.showMessageToUser(this.t('qr_found'), 'success', 2000);
+      
+      // Передаем результат в store и закрываем сканер
+      setTimeout(() => {
+        this.walletStore.qrTake(this.lastResult);
+        this.goBack();
+      }, 500);
+    },
 
-      // Создаем файл как в рабочем примере
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
-      const file = new File([blob], 'image-scan.png', { type: 'image/png' });
-      
-      // Основная функция сканирования (точно как в рабочем примере)
-      const scanImageWithFallback = async (file, canvas) => {
-        // Попытка 1: Html5Qrcode (основная библиотека)
-        try {
-          const result = await Html5Qrcode.scanFile(file, true);
-          if (result) return result;
-        } catch (e) {
-          // Html5Qrcode failed for image, trying jsQR...
-        }
+    onScanFailure(error) {
+      // Игнорируем обычные ошибки сканирования
+      if (error !== 'QR code parse error, error = NotFoundException' && 
+          !error.includes('NotFoundException')) {
+        console.warn('QR Scan error:', error);
+      }
+    },
+
+    manualScan() {
+      if (!this.isScanning) {
+        // Если сканер не активен, пробуем запустить его заново
+        console.log('Попытка перезапуска сканера вручную...');
+        this.showMessageToUser('Запуск сканера...', 'info', 2000);
         
-        // Попытка 2: jsQR как fallback
-        try {
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const result = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "attemptBoth",
-            locateRegions: true,
-            tryHarder: true
-          });
-          if (result?.data) return result.data;
-        } catch (e) {
-          // jsQR failed for image, trying ZXing...
+        // Очищаем предыдущий сканер если он есть
+        if (this.scanner) {
+          this.stopScanner();
+          setTimeout(() => {
+            this.initializeScanner();
+          }, 500);
+        } else {
+          this.initializeScanner();
         }
-        
-        // Попытка 3: ZXing для особо сложных случаев
-        try {
-          if (zxingReader) {
-            const result = await zxingReader.decodeFromCanvas(canvas);
-            if (result?.getText()) return result.getText();
-          }
-        } catch (e) {
-          // ZXing failed for image
-        }
-        
-        return null;
-      };
-      
-      // Выполняем основное сканирование
-      const result = await scanImageWithFallback(file, canvas);
-      
-      if (result && isValidUrl(result)) {
-        scanResult.value = result;
-        stopAutoScanning();
-        showMessageToUser(t('qr_found'), 'success', 2000);
-        setTimeout(() => {
-          walletStore.qrTake(scanResult.value);
-        }, 500);
+      } else {
+        // Для ручного сканирования показываем сообщение
+        this.showMessageToUser(this.t('scanning'), 'info', 2000);
+      }
+    },
+
+    handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Проверяем тип файла
+      if (!file.type.startsWith('image/')) {
+        this.showMessageToUser('Пожалуйста, выберите изображение', 'error', 3000);
         return;
       }
+
+      // Проверяем размер файла (максимум 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        this.showMessageToUser('Файл слишком большой. Максимальный размер: 10MB', 'error', 3000);
+        return;
+      }
+
+      // Сразу сканируем файл после выбора
+      this.scanFromImageFile(file);
       
-      // Если основные методы не сработали, пробуем с улучшенной обработкой
+      // Сбрасываем input
+      event.target.value = '';
+    },
+
+    async scanFromImageFile(file) {
+      this.showMessageToUser('Сканирование изображения...', 'info', 5000);
       
-      const baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      
-      // Расширенная обработка изображения (только самые эффективные методы)
-      const advancedAttempts = [
-        // CLAHE enhancement
-        () => {
-          try {
-            const processed = claheEnhancement(cloneImageData(baseImageData));
-            if (!processed) return null;
-            
-            const result = jsQR(processed.data, processed.width, processed.height, {
-              inversionAttempts: "attemptBoth",
-              locateRegions: true,
-              tryHarder: true
-            });
-            return result?.data;
-          } catch (e) {
-            return null;
-          }
-        },
+      try {
+        // Создаем временный элемент для сканирования
+        const tempDiv = document.createElement('div');
+        tempDiv.id = 'temp-scan-region';
+        tempDiv.style.display = 'none';
+        document.body.appendChild(tempDiv);
         
-        // Grayscale + CLAHE + Sharpen
-        () => {
-          try {
-            let processed = convertToGrayscale(cloneImageData(baseImageData));
-            if (!processed) return null;
-            
-            processed = claheEnhancement(processed);
-            if (!processed) return null;
-            
-            processed = sharpenImage(processed);
-            if (!processed) return null;
-            
-            const result = jsQR(processed.data, processed.width, processed.height, {
-              inversionAttempts: "attemptBoth",
-              locateRegions: true,
-              tryHarder: true
-            });
-            return result?.data;
-          } catch (e) {
-            return null;
-          }
-        },
+        // Используем Html5Qrcode для сканирования файла
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const html5QrCode = new Html5Qrcode('temp-scan-region');
         
-        // Perspective correction + processing
-        () => {
+        try {
+          const result = await html5QrCode.scanFile(file, true);
+          this.onScanSuccess(result);
+          
+        } catch (scanError) {
+          this.showMessageToUser('QR-код не найден в изображении', 'error', 4000);
+        } finally {
+          // Очищаем временный элемент
           try {
-            let corrected = correctPerspective(cloneImageData(baseImageData));
-            if (!corrected) return null;
-            
-            corrected = claheEnhancement(corrected);
-            if (!corrected) return null;
-            
-            const result = jsQR(corrected.data, corrected.width, corrected.height, {
-              inversionAttempts: "attemptBoth",
-              locateRegions: true,
-              tryHarder: true
-            });
-            return result?.data;
+            await html5QrCode.clear();
           } catch (e) {
-            return null;
+            // Игнорируем ошибки очистки
+          }
+          if (document.getElementById('temp-scan-region')) {
+            document.body.removeChild(tempDiv);
           }
         }
-      ];
-      
-      // Пробуем расширенную обработку
-      for (const attempt of advancedAttempts) {
-        const processedResult = attempt();
-        if (processedResult && isValidUrl(processedResult)) {
-          scanResult.value = processedResult;
-          stopAutoScanning();
-          showMessageToUser(t('qr_found'), 'success', 2000);
-          setTimeout(() => {
-            walletStore.qrTake(scanResult.value);
-          }, 500);
-          return;
-        }
+        
+      } catch (error) {
+        this.showMessageToUser('Ошибка сканирования изображения', 'error', 4000);
       }
+    },
+
+    showMessageToUser(text, type = 'info', duration = 5000) {
+      this.messageText = text;
+      this.messageType = type;
+      this.showMessage = true;
       
-      // Если ничего не найдено
-      showMessageToUser(t('qr_not_in_image'), 'error', 4000);
-      
-    } catch (error) {
-      showMessageToUser(t('image_process_error'), 'error', 4000);
+      setTimeout(() => {
+        this.showMessage = false;
+      }, duration);
+    },
+
+    hideMessage() {
+      this.showMessage = false;
+    },
+
+    goBack() {
+      this.stopScanner();
+      this.$router.push({ name: 'main' });
     }
-  };
-
-  img.onerror = function () {
-    showMessageToUser(t('image_load_error'), 'error', 4000);
-  };
-
-  img.src = selectedImage.value;
-};
-
-const stopScanner = () => {
-  try {
-    stopAutoScanning(); // Останавливаем автоматическое сканирование
-    
-    if (zxingReader) {
-      try {
-        // ZXing не имеет reset(), просто обнуляем
-        zxingReader = null;
-      } catch (e) {
-        // Ошибка при очистке ZXing reader
-      }
-    }
-    
-    if (stream) {
-      try {
-        stream.getTracks().forEach((track) => {
-          if (track.readyState !== 'ended') {
-            track.stop();
-          }
-        });
-        stream = null;
-      } catch (e) {
-        // Ошибка при остановке потока
-      }
-    }
-    
-    // Очищаем кешированные объекты
-    if (cachedCanvas) {
-      cachedCanvas = null;
-      cachedCtx = null;
-    }
-  } catch (error) {
-    // Ошибка в stopScanner
-  }
-};
-
-const toggleTorch = async () => {
-  if (!stream) return;
-
-  const videoTrack = stream.getVideoTracks()[0];
-  if (!videoTrack || !("applyConstraints" in videoTrack)) {
-    return;
-  }
-
-  isTorchOn.value = !isTorchOn.value;
-  await videoTrack.applyConstraints({
-    advanced: [{ torch: isTorchOn.value }],
-  });
-};
-
-const handleFileUpload = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  // Останавливаем автоматическое сканирование при выборе файла
-  stopAutoScanning();
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    selectedImage.value = e.target.result;
-  };
-  reader.readAsDataURL(file);
-};
-
-const clearImage = () => {
-  selectedImage.value = null;
-  // Возобновляем автоматическое сканирование при закрытии превью
-  startAutoScanning();
-};
-
-const goBack = () => {
-  try {
-    // Останавливаем все процессы сканирования
-    stopScanner();
-    
-    // Очищаем состояние
-    scanResult.value = null;
-    selectedImage.value = null;
-    showMessage.value = false;
-    
-    // Небольшая задержка перед навигацией для завершения очистки
-    setTimeout(() => {
-      router.push({ name: 'main' });
-    }, 100);
-  } catch (error) {
-    // Ошибка при закрытии сканера
-    // В любом случае пытаемся вернуться назад
-    router.go(-1);
   }
 };
 </script>
@@ -1516,13 +390,72 @@ const goBack = () => {
   z-index: 1000;
 }
 
-.scanner-video {
+.scanner-container {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  z-index: 1;
+}
+
+/* Стили для сканера - исправляем отображение видео */
+:deep(#qr-reader) {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+:deep(#qr-reader__dashboard) {
+  display: none !important;
+}
+
+:deep(#qr-reader__dashboard_section) {
+  display: none !important;
+}
+
+:deep(#qr-reader__camera_selection) {
+  display: none !important;
+}
+
+:deep(#html5-qrcode-button-camera-stop) {
+  display: none !important;
+}
+
+:deep(#html5-qrcode-button-camera-start) {
+  display: none !important;
+}
+
+:deep(#html5qr-code-full-region) {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+:deep(#reader__dashboard_section_swaplink) {
+  display: none !important;
+}
+
+:deep(#reader__dashboard_section_csr) {
+  display: none !important;
+}
+
+:deep(video) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+:deep(canvas) {
+  display: none !important;
 }
 
 .scanner-overlay {
@@ -1535,6 +468,8 @@ const goBack = () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .scan-frame {
@@ -1596,6 +531,7 @@ const goBack = () => {
   border-radius: 10px;
   border: 1px solid black;
   background: rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
 }
 
 .scan-button {
@@ -1605,13 +541,44 @@ const goBack = () => {
   padding: 5px;
   background: transparent;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  transition: all 0.3s ease;
+}
+
+.scan-button.pulse-animation {
+  animation: pulseCamera 2s infinite;
+}
+
+@keyframes pulseCamera {
+  0% {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+.scan-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .scan-button-circle {
-    border-radius: 100%;
-    height: 60px;
-    width: 60px;
-    background: #fff;
+  border-radius: 100%;
+  height: 60px;
+  width: 60px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-emoji {
+  font-size: 24px;
+  line-height: 1;
 }
 
 .controls {
@@ -1624,7 +591,8 @@ const goBack = () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  z-index: 2150; /* Выше message-overlay */
+  z-index: 2150;
+  pointer-events: none;
 }
 
 .control-btn {
@@ -1637,6 +605,13 @@ const goBack = () => {
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.2s ease;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .control-btn img {
@@ -1658,6 +633,7 @@ const goBack = () => {
   z-index: 2200;
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
+  pointer-events: auto;
 }
 
 .close-btn:hover {
@@ -1669,68 +645,6 @@ const goBack = () => {
   background: rgba(0, 0, 0, 0.8);
 }
 
-.image-preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: black;
-  z-index: 1002;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.image-preview img {
-  max-width: 90%;
-  max-height: 70%;
-  margin-bottom: 20px;
-}
-
-.close-preview {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.4);
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  font-size: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-}
-
-.scan-from-preview {
-  background: #4caf50;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 30px;
-  font-size: 16px;
-  cursor: pointer;
-  margin-top: 20px;
-}
-
-.wrap-load {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: #000000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-/* Стили для красивого сообщения */
 .message-overlay {
   position: absolute;
   top: 0;
@@ -1744,7 +658,7 @@ const goBack = () => {
   background: transparent;
   backdrop-filter: none;
   animation: overlayAppear 0.3s ease-out;
-  pointer-events: none; /* Позволяет кликать сквозь overlay */
+  pointer-events: none;
 }
 
 @keyframes overlayAppear {
@@ -1777,7 +691,7 @@ const goBack = () => {
   backdrop-filter: blur(20px);
   position: relative;
   overflow: hidden;
-  pointer-events: auto; /* Позволяет взаимодействие с сообщением */
+  pointer-events: auto;
 }
 
 .message-container::before {
@@ -1843,25 +757,6 @@ const goBack = () => {
   }
 }
 
-@keyframes pulseScan {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 
-      0 32px 64px -12px rgba(0, 0, 0, 0.15),
-      0 20px 25px -5px rgba(0, 0, 0, 0.1),
-      0 10px 10px -5px rgba(0, 0, 0, 0.04),
-      0 0 0 1px rgba(255, 255, 255, 0.05);
-  }
-  50% {
-    transform: scale(1.02);
-    box-shadow: 
-      0 36px 72px -12px rgba(59, 130, 246, 0.2),
-      0 24px 30px -5px rgba(59, 130, 246, 0.15),
-      0 12px 15px -5px rgba(59, 130, 246, 0.1),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
-  }
-}
-
 .message-icon {
   flex-shrink: 0;
   width: 28px;
@@ -1898,7 +793,6 @@ const goBack = () => {
   }
 }
 
-/* Адаптивность для мобильных */
 @media (max-width: 480px) {
   .message-container {
     padding: 16px 22px;
@@ -1914,6 +808,11 @@ const goBack = () => {
   .message-text {
     font-size: 14px;
     font-weight: 600;
+  }
+  
+  .scan-frame {
+    width: 80%;
+    height: 250px;
   }
 }
 </style>
