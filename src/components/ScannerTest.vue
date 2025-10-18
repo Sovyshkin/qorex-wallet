@@ -129,13 +129,24 @@ export default {
         
         // Сначала проверяем доступ к камере с улучшенными настройками
         try {
+          // Специальная обработка для Telegram WebApp
+          const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+          
           // Проверяем доступность медиа устройств
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (isTelegram) {
+              showMessageToUser('Камера недоступна в Telegram WebApp. Откройте приложение в браузере через меню → "Открыть в браузере"', 'error', 10000);
+              return;
+            }
             throw new Error('MediaDevices API not supported');
           }
           
-          // Специальные настройки для Telegram WebView
-          const constraints = {
+          // Специальные настройки для Telegram WebView - более простые ограничения
+          const constraints = isTelegram ? {
+            video: {
+              facingMode: "environment"
+            }
+          } : {
             video: {
               facingMode: "environment",
               width: { ideal: 1920, min: 640 },
@@ -144,9 +155,9 @@ export default {
             }
           };
           
-          // В Telegram может потребоваться дополнительная задержка
-          if (window.Telegram?.WebApp) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          // В Telegram требуется больше времени для инициализации
+          if (isTelegram) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
           
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -161,28 +172,40 @@ export default {
           // Инициализируем Html5QrcodeScanner и сразу запускаем сканер
           initializeScanner();
           
-          // В Telegram может потребоваться дополнительная задержка перед запуском
-          if (window.Telegram?.WebApp) {
+          // В Telegram требуется значительно больше времени для запуска
+          if (isTelegram) {
+            setTimeout(() => startScanner(), 3000);
+          } else if (window.Telegram?.WebApp) {
             setTimeout(() => startScanner(), 1500);
           } else {
             startScanner();
           }
           
         } catch (cameraError) {
+          const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+          
           if (cameraError.name === 'NotAllowedError') {
-            if (window.Telegram?.WebApp) {
-              showMessageToUser('Доступ к камере запрещен. В Telegram откройте приложение через браузер или разрешите доступ к камере в настройках системы.', 'error', 8000);
+            if (isTelegram) {
+              showMessageToUser('Доступ к камере запрещен в Telegram. Откройте приложение в браузере: нажмите ⋯ в правом верхнем углу → "Открыть в браузере"', 'error', 12000);
             } else {
               showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
             }
           } else if (cameraError.name === 'NotFoundError') {
-            showMessageToUser('Камера не найдена. Убедитесь что камера подключена к устройству.', 'error', 6000);
+            if (isTelegram) {
+              showMessageToUser('Камера недоступна в Telegram WebApp. Используйте кнопку "Выбрать файл" или откройте в браузере', 'error', 8000);
+            } else {
+              showMessageToUser('Камера не найдена. Убедитесь что камера подключена к устройству.', 'error', 6000);
+            }
           } else if (cameraError.message === 'MediaDevices API not supported') {
             showMessageToUser('Камера не поддерживается в этом браузере. Попробуйте открыть приложение в Chrome или Safari.', 'error', 8000);
           } else if (window.location.protocol !== 'https:') {
             showMessageToUser('Камера работает только через HTTPS. Обновите адрес сайта.', 'error', 6000);
           } else {
-            showMessageToUser('Ошибка доступа к камере: ' + cameraError.message, 'error', 6000);
+            if (isTelegram) {
+              showMessageToUser('Камера недоступна в Telegram. Используйте сканирование файлов или откройте в браузере', 'error', 8000);
+            } else {
+              showMessageToUser('Ошибка доступа к камере: ' + cameraError.message, 'error', 6000);
+            }
           }
         }
         
@@ -224,11 +247,13 @@ export default {
         }
       }
       
+      const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+      
       const config = {
-        fps: 15, // Оптимальный FPS для QR-кодов оплаты
+        fps: isTelegram ? 10 : 15, // Более низкий FPS для Telegram
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Увеличенная область сканирования для QR-кодов оплаты
-          let minEdgePercentage = 0.8; // 80% от меньшей стороны для лучшего захвата
+          // Для Telegram используем меньшую область сканирования
+          let minEdgePercentage = isTelegram ? 0.6 : 0.8;
           let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
           let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
           return {
@@ -237,27 +262,28 @@ export default {
           };
         },
         rememberLastUsedCamera: true,
-        // Специализируемся только на QR-кодах для оплаты
-        supportedScanTypes: [0], // 0 = QR_CODE, специально для платежных QR
-        useBarCodeDetectorIfSupported: true,
-        aspectRatio: 1.0, // Квадратное соотношение идеально для QR
+        // Для Telegram не ограничиваем типы сканирования
+        supportedScanTypes: isTelegram ? undefined : [0],
+        useBarCodeDetectorIfSupported: !isTelegram, // Отключаем для Telegram
+        aspectRatio: 1.0,
         showTorchButtonIfSupported: false,
         showZoomSliderIfSupported: false,
-        videoConstraints: {
-          facingMode: "environment", // Задняя камера для сканирования
-          width: { ideal: 1920, min: 1280 }, // HD качество для четкого распознавания
+        videoConstraints: isTelegram ? {
+          facingMode: "environment" // Минимальные настройки для Telegram
+        } : {
+          facingMode: "environment",
+          width: { ideal: 1920, min: 1280 },
           height: { ideal: 1080, min: 720 },
-          frameRate: { ideal: 15, max: 20 }, // Стабильный frame rate
-          focusMode: "continuous", // Постоянная фокусировка для четкости
-          exposureMode: "continuous" // Автоматическая экспозиция
+          frameRate: { ideal: 15, max: 20 },
+          focusMode: "continuous",
+          exposureMode: "continuous"
         },
-        // Настройки специально для платежных QR-кодов
+        // Более простые настройки для Telegram
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
+          useBarCodeDetectorIfSupported: !isTelegram
         },
-        // Дополнительные настройки для финансовых QR
-        disableFlip: false, // Разрешаем переворот изображения
-        verbose: false // Отключаем лишние логи
+        disableFlip: false,
+        verbose: false
       };
 
       try {
@@ -326,7 +352,13 @@ export default {
         setTimeout(() => tryClickPermissionButton(), 1500);
         
         // Дополнительные попытки для Telegram
-        if (window.Telegram?.WebApp) {
+        const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+        if (isTelegram) {
+          setTimeout(() => tryClickPermissionButton(), 2000);
+          setTimeout(() => tryClickPermissionButton(), 3000);
+          setTimeout(() => tryClickPermissionButton(), 4000);
+          setTimeout(() => tryClickPermissionButton(), 5000);
+        } else if (window.Telegram?.WebApp) {
           setTimeout(() => tryClickPermissionButton(), 2000);
           setTimeout(() => tryClickPermissionButton(), 3000);
         }
@@ -346,7 +378,21 @@ export default {
         setTimeout(() => forceShowVideo(), 5000);
         
         // Дополнительные проверки для Telegram WebView
-        if (window.Telegram?.WebApp) {
+        const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+        if (isTelegram) {
+          setTimeout(() => {
+            tryClickPermissionButton();
+            forceShowVideo();
+          }, 4000);
+          
+          setTimeout(() => {
+            tryClickPermissionButton();
+            forceShowVideo();
+          }, 6000);
+          
+          setTimeout(() => forceShowVideo(), 8000);
+          setTimeout(() => forceShowVideo(), 10000);
+        } else if (window.Telegram?.WebApp) {
           setTimeout(() => {
             tryClickPermissionButton();
             forceShowVideo();
