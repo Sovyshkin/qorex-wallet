@@ -303,6 +303,8 @@ export default {
         return;
       }
       
+      const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+      
       try {
         scanner.render(
           (decodedText) => onScanSuccess(decodedText),
@@ -352,7 +354,6 @@ export default {
         setTimeout(() => tryClickPermissionButton(), 1500);
         
         // Дополнительные попытки для Telegram
-        const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
         if (isTelegram) {
           setTimeout(() => tryClickPermissionButton(), 2000);
           setTimeout(() => tryClickPermissionButton(), 3000);
@@ -378,7 +379,6 @@ export default {
         setTimeout(() => forceShowVideo(), 5000);
         
         // Дополнительные проверки для Telegram WebView
-        const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
         if (isTelegram) {
           setTimeout(() => {
             tryClickPermissionButton();
