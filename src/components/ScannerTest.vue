@@ -48,6 +48,19 @@
           <img src="../assets/lamp.png" alt="">
         </button>
       </div>
+      
+      <!-- Специальная подсказка для Telegram -->
+      <div v-if="showTelegramHelp" class="telegram-help">
+        <div class="telegram-help-content">
+          <h3>🤖 Используете Telegram?</h3>
+          <p>Для лучшей работы камеры откройте приложение в браузере:</p>
+          <ol>
+            <li>Нажмите ⋯ в правом верхнем углу</li>
+            <li>Выберите "Открыть в браузере"</li>
+          </ol>
+          <button class="telegram-help-close" @click="hideTelegramHelp">Понятно</button>
+        </div>
+      </div>
 
       <!-- Красивое сообщение для пользователя -->
       <div v-if="showMessage" class="message-overlay" @click="hideMessage">
@@ -88,6 +101,7 @@ export default {
     const showMessage = ref(false);
     const messageText = ref('');
     const messageType = ref('info');
+    const showTelegramHelp = ref(false);
     
     let scanner = null;
     let isScanning = false;
@@ -97,6 +111,20 @@ export default {
     onMounted(async () => {
       // Показываем сообщение о загрузке сразу
       showMessageToUser('Запуск камеры...', 'info', 3000);
+      
+      // Проверяем Telegram и показываем подсказку
+      const isTelegramCheck = window.Telegram?.WebApp || 
+                             navigator.userAgent.includes('Telegram') ||
+                             navigator.userAgent.includes('TelegramBot') ||
+                             window.TelegramWebviewProxy ||
+                             window.external?.notify ||
+                             document.referrer.includes('telegram');
+      
+      if (isTelegramCheck) {
+        setTimeout(() => {
+          showTelegramHelp.value = true;
+        }, 2000);
+      }
       
       try {
         // Убираем любые отступы на уровне body и html для полноэкранного режима
@@ -132,51 +160,75 @@ export default {
         
         // Сначала проверяем доступ к камере с упрощенными настройками
         try {
-          // Специальная обработка для Telegram WebApp
-          const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+          // Улучшенная детекция Telegram WebApp
+          const isTelegram = window.Telegram?.WebApp || 
+                           navigator.userAgent.includes('Telegram') ||
+                           navigator.userAgent.includes('TelegramBot') ||
+                           window.TelegramWebviewProxy ||
+                           window.external?.notify ||
+                           document.referrer.includes('telegram');
           
-          // Упрощенные настройки для быстрого запуска
-          const constraints = {
+          // Для Telegram используем максимально простые настройки
+          const constraints = isTelegram ? {
+            video: true // Самые простые настройки для Telegram
+          } : {
             video: {
               facingMode: "environment",
-              width: { ideal: 640 }, // Уменьшаем для скорости
+              width: { ideal: 640 },
               height: { ideal: 480 }
             }
           };
           
-          // Быстрая проверка доступа к камере без задержек
+          // В Telegram сначала проверяем разрешения
+          if (isTelegram && navigator.permissions) {
+            try {
+              const permission = await navigator.permissions.query({name: 'camera'});
+              if (permission.state === 'denied') {
+                showMessageToUser('Доступ к камере заблокирован. Разрешите доступ к камере в настройках браузера Telegram', 'error', 10000);
+                return;
+              }
+            } catch (e) {
+              // Игнорируем ошибки проверки разрешений
+            }
+          }
+          
+          // Быстрая проверка доступа к камере
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
           
           // Останавливаем тестовый поток сразу
           stream.getTracks().forEach(track => track.stop());
           
-          // Убираем сообщение загрузки и показываем готовность
+          // Убираем сообщение загрузки
           hideMessage();
           
           // Инициализируем Html5QrcodeScanner и сразу запускаем сканер
           initializeScanner();
           
-          // Запускаем сканер немедленно для всех браузеров
+          // Для Telegram увеличиваем задержку
           if (isTelegram) {
-            // Для Telegram минимальная задержка
-            setTimeout(() => startScanner(), 300);
+            setTimeout(() => startScanner(), 1000);
           } else {
-            // Для обычных браузеров запускаем сразу
             setTimeout(() => startScanner(), 100);
           }
           
         } catch (cameraError) {
-          const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+          // Используем улучшенную детекцию Telegram
+          const isTelegram = window.Telegram?.WebApp || 
+                           navigator.userAgent.includes('Telegram') ||
+                           navigator.userAgent.includes('TelegramBot') ||
+                           window.TelegramWebviewProxy ||
+                           window.external?.notify ||
+                           document.referrer.includes('telegram');
           
           if (cameraError.name === 'NotAllowedError') {
             if (isTelegram) {
-              showMessageToUser('Доступ к камере запрещен в Telegram. Откройте приложение в браузере: нажмите ⋯ в правом верхнем углу → "Открыть в браузере"', 'error', 12000);
+              showMessageToUser('🔧 Инструкция для Telegram:\n1. Нажмите ⋯ в правом верхнем углу\n2. Выберите "Открыть в браузере"\n3. Или разрешите доступ к камере в настройках Telegram', 'error', 15000);
             } else {
               showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
             }
           } else if (cameraError.name === 'NotFoundError') {
             if (isTelegram) {
-              showMessageToUser('Камера недоступна в Telegram WebApp. Используйте кнопку "Выбрать файл" или откройте в браузере', 'error', 8000);
+              showMessageToUser('📱 Камера недоступна в Telegram WebApp.\n\nВарианты решения:\n• Используйте кнопку "Выбрать файл" внизу\n• Откройте приложение в браузере через меню Telegram', 'error', 12000);
             } else {
               showMessageToUser('Камера не найдена. Убедитесь что камера подключена к устройству.', 'error', 6000);
             }
@@ -231,13 +283,19 @@ export default {
         }
       }
       
-      const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+      // Улучшенная детекция Telegram WebApp
+      const isTelegram = window.Telegram?.WebApp || 
+                       navigator.userAgent.includes('Telegram') ||
+                       navigator.userAgent.includes('TelegramBot') ||
+                       window.TelegramWebviewProxy ||
+                       window.external?.notify ||
+                       document.referrer.includes('telegram');
       
       const config = {
-        fps: isTelegram ? 8 : 10, // Снижаем FPS для быстрого запуска
+        fps: isTelegram ? 5 : 10, // Очень низкий FPS для Telegram
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Уменьшаем область сканирования для ускорения
-          let minEdgePercentage = isTelegram ? 0.5 : 0.7;
+          // Большая область сканирования для Telegram
+          let minEdgePercentage = isTelegram ? 0.8 : 0.7;
           let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
           let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
           return {
@@ -246,26 +304,29 @@ export default {
           };
         },
         rememberLastUsedCamera: true,
-        // Упрощаем настройки для быстрого запуска
-        supportedScanTypes: [0], // Только QR коды
-        useBarCodeDetectorIfSupported: false, // Отключаем для ускорения
+        // Для Telegram разрешаем все типы сканирования
+        supportedScanTypes: isTelegram ? undefined : [0],
+        useBarCodeDetectorIfSupported: false, // Отключаем везде
         aspectRatio: 1.0,
         showTorchButtonIfSupported: false,
         showZoomSliderIfSupported: false,
         videoConstraints: isTelegram ? {
-          facingMode: "environment" // Минимальные настройки для Telegram
+          // Максимально простые настройки для Telegram
+          video: true
         } : {
           facingMode: "environment",
-          width: { ideal: 1280, min: 640 }, // Уменьшаем разрешение для скорости
+          width: { ideal: 1280, min: 640 },
           height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 10, max: 15 } // Снижаем FPS
+          frameRate: { ideal: 10, max: 15 }
         },
-        // Отключаем экспериментальные функции для стабильности
+        // Отключаем экспериментальные функции
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false
         },
         disableFlip: false,
-        verbose: false
+        verbose: false,
+        // Специальные настройки для Telegram
+        formatsToSupport: isTelegram ? undefined : [11] // QR_CODE
       };
 
       try {
@@ -353,10 +414,27 @@ export default {
         setTimeout(() => tryClickPermissionButton(), 300);
         setTimeout(() => tryClickPermissionButton(), 500);
         
-        // Дополнительные попытки только для Telegram
+        // Дополнительные попытки для Telegram с увеличенными интервалами
         if (isTelegram) {
+          // Многократные попытки для Telegram
           setTimeout(() => tryClickPermissionButton(), 1000);
           setTimeout(() => tryClickPermissionButton(), 1500);
+          setTimeout(() => tryClickPermissionButton(), 2000);
+          setTimeout(() => tryClickPermissionButton(), 3000);
+          setTimeout(() => tryClickPermissionButton(), 4000);
+          
+          // Принудительные попытки запуска видео
+          setTimeout(() => forceShowVideo(), 2000);
+          setTimeout(() => forceShowVideo(), 3000);
+          setTimeout(() => forceShowVideo(), 5000);
+          
+          // Дополнительная попытка показать сообщение об инструкции
+          setTimeout(() => {
+            const video = document.querySelector('#qr-reader video');
+            if (!video || !video.srcObject) {
+              showMessageToUser('В Telegram нажмите "Разрешить" в запросе доступа к камере', 'info', 8000);
+            }
+          }, 3000);
         }
         
         // Быстрое скрытие UI элементов
@@ -723,6 +801,10 @@ export default {
       showMessage.value = false;
     };
 
+    const hideTelegramHelp = () => {
+      showTelegramHelp.value = false;
+    };
+
     const toggleTorch = async () => {
       // Пытаемся найти видео элемент Html5QrcodeScanner
       const video = document.querySelector('#qr-reader video');
@@ -828,9 +910,11 @@ export default {
       showMessage,
       messageText,
       messageType,
+      showTelegramHelp,
       manualScan,
       showMessageToUser,
       hideMessage,
+      hideTelegramHelp,
       toggleTorch,
       handleFileUpload,
       goBack
@@ -1284,6 +1368,75 @@ export default {
   .message-text {
     font-size: 14px;
     font-weight: 600;
+  }
+}
+
+/* Стили для подсказки Telegram */
+.telegram-help {
+  position: absolute;
+  bottom: 120px;
+  left: 20px;
+  right: 20px;
+  z-index: 1100;
+  animation: slideUp 0.3s ease-out;
+}
+
+.telegram-help-content {
+  background: linear-gradient(135deg, rgba(34, 139, 230, 0.95) 0%, rgba(29, 78, 216, 0.95) 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.telegram-help-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.telegram-help-content p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.telegram-help-content ol {
+  margin: 0 0 16px 0;
+  padding-left: 16px;
+  font-size: 14px;
+}
+
+.telegram-help-content li {
+  margin-bottom: 4px;
+}
+
+.telegram-help-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.telegram-help-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
