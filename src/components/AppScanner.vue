@@ -105,6 +105,8 @@ const messageType = ref('info');
 let scanner = null;
 let isScanning = false;
 let videoObserver = null;
+let frameScanner = null; // Для сканирования кадров
+let videoElement = null; // Ссылка на видео элемент
 
 // Автоматический запуск Html5QrcodeScanner при монтировании
 onMounted(async () => {
@@ -249,49 +251,32 @@ const initializeScanner = () => {
                    window.external?.notify ||
                    document.referrer.includes('telegram');
   
+  // Упрощенные настройки - нам нужно только видео, сканирование делаем отдельно
   const config = {
-    fps: isTelegram ? 5 : 10, // Очень низкий FPS для Telegram
-    qrbox: function(viewfinderWidth, viewfinderHeight) {
-      // Большая область сканирования для лучшего распознавания
-      let minEdgePercentage = 0.8;
-      let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-      let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-      return {
-        width: qrboxSize,
-        height: qrboxSize
-      };
-    },
+    fps: 30, // Высокий FPS для плавного видео
+    qrbox: { width: 250, height: 250 }, // Простая фиксированная область
     rememberLastUsedCamera: true,
-    // Для Telegram разрешаем все типы сканирования
-    supportedScanTypes: isTelegram ? undefined : [0],
-    useBarCodeDetectorIfSupported: false, // Отключаем везде
+    useBarCodeDetectorIfSupported: false, // Отключаем встроенное сканирование
     aspectRatio: 1.0,
     showTorchButtonIfSupported: false,
     showZoomSliderIfSupported: false,
     videoConstraints: isTelegram ? {
-      // Максимально простые настройки для Telegram
       video: true
     } : {
       facingMode: "environment",
       width: { ideal: 1280, min: 640 },
       height: { ideal: 720, min: 480 },
-      frameRate: { ideal: 10, max: 15 }
+      frameRate: { ideal: 30, max: 30 }
     },
-    // Отключаем экспериментальные функции
-    experimentalFeatures: {
-      useBarCodeDetectorIfSupported: false
-    },
-    disableFlip: true, // Полностью отключаем зеркалирование
-    verbose: false,
-    // Специальные настройки для Telegram
-    formatsToSupport: isTelegram ? undefined : [11] // QR_CODE
+    disableFlip: true, // Отключаем зеркалирование
+    verbose: false
   };
 
   try {
     scanner = new Html5QrcodeScanner(
       "qr-reader",
       config,
-      false // verbose = false чтобы скрыть лишние элементы UI
+      false
     );
     
   } catch (error) {
@@ -307,9 +292,14 @@ const startScanner = () => {
   const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
   
   try {
+    // Запускаем Html5QrcodeScanner только для получения видеопотока
     scanner.render(
-      (decodedText) => onScanSuccess(decodedText),
-      (errorMessage) => onScanFailure(errorMessage)
+      (decodedText) => {
+        // Отключаем встроенное сканирование, используем наше сканирование кадров
+      },
+      (errorMessage) => {
+        // Игнорируем ошибки встроенного сканера
+      }
     );
     
     isScanning = true;
@@ -321,8 +311,18 @@ const startScanner = () => {
           const video = document.querySelector('#qr-reader video');
           if (video && !video.dataset.configured) {
             video.dataset.configured = 'true';
+            videoElement = video;
+            
             // Принудительно показываем видео только один раз
             forceShowVideo();
+            
+            // Запускаем сканирование кадров когда видео готово
+            video.addEventListener('loadeddata', () => {
+              setTimeout(() => {
+                startFrameScanning();
+                showMessageToUser('Сканирование активно. Наведите камеру на QR-код', 'info', 2000);
+              }, 1000);
+            });
           }
           
           // Скрываем UI элементы сразу после их создания
@@ -396,7 +396,100 @@ const startScanner = () => {
     showMessageToUser('Ошибка запуска сканера', 'error', 4000);
     isScanning = false;
   }
-};// Принудительное отображение видео
+};// Функция для захвата кадра из видео и его сканирования
+const captureAndScanFrame = async () => {
+  if (!videoElement || videoElement.readyState !== 4) {
+    return; // Видео не готово
+  }
+  
+  try {
+    // Создаем canvas для захвата кадра
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Устанавливаем размеры canvas равными размерам видео
+    canvas.width = videoElement.videoWidth || 640;
+    canvas.height = videoElement.videoHeight || 480;
+    
+    // Рисуем текущий кадр видео на canvas
+    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+    
+    // Конвертируем canvas в blob
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      
+      try {
+        // Создаем временный элемент для сканирования
+        const tempDiv = document.createElement('div');
+        tempDiv.id = 'temp-frame-scan-region';
+        tempDiv.style.display = 'none';
+        document.body.appendChild(tempDiv);
+        
+        // Используем Html5Qrcode для сканирования кадра
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const html5QrCode = new Html5Qrcode('temp-frame-scan-region');
+        
+        // Создаем File объект из blob
+        const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+        
+        // Сканируем кадр
+        const result = await html5QrCode.scanFile(file, true);
+        
+        // Если QR-код найден, обрабатываем результат
+        if (result) {
+          onScanSuccess(result);
+        }
+        
+        // Очищаем временный элемент
+        await html5QrCode.clear();
+        if (document.getElementById('temp-frame-scan-region')) {
+          document.body.removeChild(tempDiv);
+        }
+        
+      } catch (scanError) {
+        // QR-код не найден в кадре - это нормально, просто продолжаем
+        
+        // Очищаем временный элемент в случае ошибки
+        const tempDiv = document.getElementById('temp-frame-scan-region');
+        if (tempDiv) {
+          try {
+            if (frameScanner) {
+              await frameScanner.clear();
+            }
+          } catch (e) {
+            // Игнорируем ошибки очистки
+          }
+          document.body.removeChild(tempDiv);
+        }
+      }
+    }, 'image/jpeg', 0.8);
+    
+  } catch (error) {
+    // Игнорируем ошибки захвата кадра
+  }
+};
+
+// Запускаем сканирование кадров
+const startFrameScanning = () => {
+  if (frameScanner) {
+    clearInterval(frameScanner);
+  }
+  
+  // Сканируем кадры каждые 300ms для быстрого отклика
+  frameScanner = setInterval(() => {
+    if (isScanning && videoElement && videoElement.readyState === 4) {
+      captureAndScanFrame();
+    }
+  }, 300);
+};
+
+// Останавливаем сканирование кадров  
+const stopFrameScanning = () => {
+  if (frameScanner) {
+    clearInterval(frameScanner);
+    frameScanner = null;
+  }
+};
 const forceShowVideo = () => {
   const video = document.querySelector('#qr-reader video');
   if (video) {
@@ -673,6 +766,9 @@ const handleImageQRResult = (qrData) => {
 
 const stopScanner = () => {
   try {
+    // Останавливаем сканирование кадров
+    stopFrameScanning();
+    
     // Останавливаем мониторинг видео
     if (window.videoMonitoringInterval) {
       clearInterval(window.videoMonitoringInterval);
@@ -707,6 +803,9 @@ const stopScanner = () => {
       video.removeAttribute('data-styles-applied');
       video.removeAttribute('data-configured');
     }
+    
+    // Сбрасываем ссылку на видео элемент
+    videoElement = null;
     
     // Очищаем маркеры для canvas
     const canvas = document.querySelector('#qr-reader canvas');
