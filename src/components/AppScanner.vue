@@ -158,6 +158,31 @@ onMounted(async () => {
                        window.external?.notify ||
                        document.referrer.includes('telegram');
       
+      // Добавляем обработчик клика для активации видео в Telegram
+      if (isTelegram) {
+        const activateVideo = () => {
+          const video = document.querySelector('#qr-reader video');
+          if (video && video.paused) {
+            video.muted = true;
+            video.playsInline = true;
+            video.play().then(() => {
+              // Убираем обработчик после успешной активации
+              document.removeEventListener('click', activateVideo);
+              document.removeEventListener('touchstart', activateVideo);
+            }).catch(err => {
+              console.log('Click activation failed:', err);
+            });
+          }
+        };
+        
+        // Добавляем обработчики для активации видео по клику
+        document.addEventListener('click', activateVideo, { once: false });
+        document.addEventListener('touchstart', activateVideo, { once: false });
+        
+        // Сохраняем для очистки при размонтировании
+        window.telegramVideoActivator = activateVideo;
+      }
+      
       // Для Telegram используем максимально простые настройки
       const constraints = isTelegram ? {
         video: true // Самые простые настройки для Telegram
@@ -212,6 +237,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   try {
+    // Очищаем обработчики для Telegram
+    if (window.telegramVideoActivator) {
+      document.removeEventListener('click', window.telegramVideoActivator);
+      document.removeEventListener('touchstart', window.telegramVideoActivator);
+      delete window.telegramVideoActivator;
+    }
+    
     // Восстанавливаем стили при выходе из компонента
     if (window.originalBodyStyle !== undefined) {
       document.body.style.cssText = window.originalBodyStyle;
@@ -368,6 +400,33 @@ const startScanner = () => {
       setTimeout(() => forceShowVideo(), 2000);
       setTimeout(() => forceShowVideo(), 3000);
       setTimeout(() => forceShowVideo(), 5000);
+      
+      // Дополнительные попытки активации видео для Telegram
+      setTimeout(() => {
+        const video = document.querySelector('#qr-reader video');
+        if (video && video.paused) {
+          showMessageToUser('Нажмите на экран для запуска камеры', 'info', 5000);
+        }
+      }, 6000);
+      
+      // Повторная проверка каждые 10 секунд в течение минуты
+      let attempts = 0;
+      const maxAttempts = 6;
+      const telegramVideoCheck = setInterval(() => {
+        attempts++;
+        const video = document.querySelector('#qr-reader video');
+        if (video && video.paused && attempts < maxAttempts) {
+          video.muted = true;
+          video.playsInline = true;
+          video.play().catch(() => {
+            if (attempts === maxAttempts - 1) {
+              showMessageToUser('Камера заблокирована. Обновите страницу или откройте в браузере.', 'error', 8000);
+            }
+          });
+        } else if (attempts >= maxAttempts) {
+          clearInterval(telegramVideoCheck);
+        }
+      }, 10000);
     }
     
     // Быстрое скрытие UI элементов
@@ -493,9 +552,119 @@ const stopFrameScanning = () => {
 const forceShowVideo = () => {
   const video = document.querySelector('#qr-reader video');
   if (video) {
+    // Сохраняем ссылку на видео элемент для сканирования кадров
+    videoElement = video;
+    
     // Проверяем, нужно ли обновлять стили
     if (video.dataset.stylesApplied === 'true') {
       return true; // Стили уже применены, не трогаем
+    }
+    
+    // Специальная обработка для Telegram WebApp
+    const isTelegram = window.Telegram?.WebApp || 
+                     navigator.userAgent.includes('Telegram') ||
+                     navigator.userAgent.includes('TelegramBot') ||
+                     window.TelegramWebviewProxy ||
+                     window.external?.notify ||
+                     document.referrer.includes('telegram');
+    
+    // Обработчики событий для отладки и принудительного воспроизведения в Telegram
+    if (isTelegram) {
+      // Добавляем обработчики только один раз
+      if (!video.dataset.telegramHandlersAdded) {
+        video.addEventListener('loadstart', () => {
+          console.log('📹 Video: load started');
+        });
+        
+        video.addEventListener('loadedmetadata', () => {
+          console.log('📹 Video: metadata loaded', {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            duration: video.duration
+          });
+          // Принудительно запускаем после загрузки метаданных
+          if (video.paused) {
+            video.muted = true;
+            video.playsInline = true;
+            video.autoplay = true;
+            video.play().catch(err => console.log('Play after metadata failed:', err));
+          }
+        });
+        
+        video.addEventListener('loadeddata', () => {
+          console.log('📹 Video: data loaded');
+          // Еще одна попытка запуска
+          if (video.paused) {
+            video.muted = true;
+            video.playsInline = true;
+            video.play().catch(err => console.log('Play after data failed:', err));
+          }
+        });
+        
+        video.addEventListener('canplay', () => {
+          console.log('📹 Video: can start playing');
+          if (video.paused) {
+            video.play().catch(err => console.log('Play on canplay failed:', err));
+          }
+        });
+        
+        video.addEventListener('playing', () => {
+          console.log('📹 Video: is playing successfully');
+        });
+        
+        video.addEventListener('pause', () => {
+          console.log('📹 Video: paused');
+          // Пытаемся снова запустить если видео было приостановлено
+          setTimeout(() => {
+            if (video.paused) {
+              video.play().catch(err => console.log('Resume failed:', err));
+            }
+          }, 500);
+        });
+        
+        video.addEventListener('error', (e) => {
+          console.error('📹 Video error:', e);
+          showMessageToUser('Ошибка воспроизведения видео. Попробуйте открыть в браузере.', 'error', 5000);
+        });
+        
+        video.addEventListener('stalled', () => {
+          console.log('📹 Video: stalled, attempting restart');
+          if (video.paused) {
+            video.play().catch(err => console.log('Restart failed:', err));
+          }
+        });
+        
+        video.addEventListener('waiting', () => {
+          console.log('📹 Video: waiting for data');
+        });
+        
+        video.dataset.telegramHandlersAdded = 'true';
+      }
+      
+      // Устанавливаем важные атрибуты для Telegram
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.setAttribute('webkit-playsinline', 'true');
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('muted', 'true');
+      video.setAttribute('autoplay', 'true');
+      
+      // Принудительная попытка запуска для Telegram
+      if (video.paused) {
+        video.play().catch(err => {
+          console.log('Initial Telegram play failed:', err);
+          // Еще одна попытка через таймаут
+          setTimeout(() => {
+            if (video.paused) {
+              video.play().catch(err2 => {
+                console.log('Second Telegram play failed:', err2);
+                showMessageToUser('Нажмите на экран для активации камеры', 'info', 4000);
+              });
+            }
+          }, 1000);
+        });
+      }
     }
     
     // Убираем все возможные скрывающие стили и принудительно показываем видео
@@ -545,13 +714,6 @@ const forceShowVideo = () => {
         padding: 0 !important;
       `;
       videoContainer.dataset.stylesApplied = 'true';
-    }
-    
-    // Принудительно запускаем видео если оно приостановлено
-    if (video.paused) {
-      video.play().catch(() => {
-        // Игнорируем ошибки автозапуска
-      });
     }
     
     // Убеждаемся что canvas для QR детекции тоже видимый
@@ -672,11 +834,7 @@ const onScanSuccess = (decodedText) => {
     showMessageToUser('QR-код найден!', 'success', 1500);
   }
   
-  // Быстро передаем результат в store и закрываем сканер
-  setTimeout(() => {
-    walletStore.qrTake(decodedText);
-    goBack();
-  }, 300);
+  walletStore.qrTake(decodedText);
 };
 
 const onScanFailure = (error) => {
