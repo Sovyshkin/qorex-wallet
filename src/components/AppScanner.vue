@@ -473,11 +473,24 @@ const startScanner = () => {
     debugLog('✅ Scanner render called, isScanning = true');
     
     // Создаем наблюдатель для отслеживания появления видео элемента
+    debugLog('👀 Setting up MutationObserver for video detection');
     videoObserver = new MutationObserver((mutations) => {
+      debugLog('🔄 DOM mutation detected, checking for video');
       mutations.forEach((mutation) => {
+        debugLog('🔄 Mutation details:', {
+          type: mutation.type,
+          addedNodes: mutation.addedNodes.length,
+          removedNodes: mutation.removedNodes.length,
+          target: mutation.target.tagName,
+          targetId: mutation.target.id
+        });
+        
         if (mutation.type === 'childList') {
           const video = document.querySelector('#qr-reader video');
+          debugLog('🎯 Video search result:', !!video);
+          
           if (video && !video.dataset.configured) {
+            debugLog('✅ New video element found and configuring');
             video.dataset.configured = 'true';
             videoElement = video;
             
@@ -486,11 +499,14 @@ const startScanner = () => {
             
             // Запускаем сканирование кадров когда видео готово
             video.addEventListener('loadeddata', () => {
+              debugLog('📹 Video data loaded, starting frame scanning');
               setTimeout(() => {
                 startFrameScanning();
                 showMessageToUser('Сканирование активно. Наведите камеру на QR-код', 'info', 2000);
               }, 1000);
             });
+          } else if (video) {
+            debugLog('ℹ️ Video element found but already configured');
           }
           
           // Скрываем UI элементы сразу после их создания
@@ -502,12 +518,21 @@ const startScanner = () => {
     // Начинаем наблюдение за изменениями в qr-reader
     const qrReaderElement = document.getElementById('qr-reader');
     if (qrReaderElement) {
+      debugLog('👀 Starting MutationObserver on #qr-reader');
       videoObserver.observe(qrReaderElement, {
         childList: true,
         subtree: true,
         attributes: true,
         attributeFilter: ['style', 'class']
       });
+      
+      // Проверим начальное состояние DOM
+      debugLog('🔍 Initial #qr-reader state:', {
+        children: qrReaderElement.children.length,
+        innerHTML: qrReaderElement.innerHTML.substring(0, 200)
+      });
+    } else {
+      errorLog('❌ #qr-reader element not found for MutationObserver');
     }
     
     // Автоматически нажимаем кнопку разрешения камеры если она появилась
@@ -570,13 +595,51 @@ const startScanner = () => {
       hideHtml5QrcodeUI();
     }, 200);
     
-    // Единичная проверка видео через 1 секунду
+    // Расширенная проверка через временные интервалы
     setTimeout(() => {
+      debugLog('🕐 1-second check: examining scanner state');
+      const qrReaderElement = document.getElementById('qr-reader');
       const video = document.querySelector('#qr-reader video');
+      
+      debugLog('🔍 Scanner state after 1 second:', {
+        qrReaderExists: !!qrReaderElement,
+        qrReaderContent: qrReaderElement ? qrReaderElement.innerHTML.substring(0, 300) : 'N/A',
+        videoExists: !!video,
+        isScanning: isScanning,
+        scannerExists: !!scanner
+      });
+      
       if (video && !video.dataset.stylesApplied) {
+        debugLog('📹 Found unstyled video, applying styles');
         forceShowVideo();
+      } else if (!video) {
+        debugLog('❌ No video element found after 1 second');
       }
     }, 1000);
+    
+    // Дополнительные проверки для Telegram
+    if (isTelegram) {
+      setTimeout(() => {
+        debugLog('🕕 5-second Telegram check');
+        const qrReaderElement = document.getElementById('qr-reader');
+        debugLog('📋 QR Reader after 5 seconds:', {
+          innerHTML: qrReaderElement ? qrReaderElement.innerHTML : 'Element not found'
+        });
+        
+        // Попытка принудительного рендера
+        if (scanner && qrReaderElement && !document.querySelector('#qr-reader video')) {
+          debugLog('🔧 Attempting to force Html5QrcodeScanner render');
+          try {
+            scanner.clear();
+            setTimeout(() => {
+              scanner.render(() => {}, () => {});
+            }, 500);
+          } catch (e) {
+            errorLog('❌ Force render failed', e);
+          }
+        }
+      }, 5000);
+    }
     
     // Уменьшаем интервал мониторинга видео для быстрого отклика
     const videoMonitoring = setInterval(() => {
@@ -588,6 +651,7 @@ const startScanner = () => {
     window.videoMonitoringInterval = videoMonitoring;
         
   } catch (error) {
+    errorLog('❌ Scanner start failed', error);
     showMessageToUser('Ошибка запуска сканера', 'error', 4000);
     isScanning = false;
   }
@@ -687,7 +751,31 @@ const stopFrameScanning = () => {
 };
 const forceShowVideo = () => {
   debugLog('🎬 forceShowVideo called');
+  
+  // Подробное логирование состояния DOM
+  const qrReaderElement = document.getElementById('qr-reader');
+  debugLog('🔍 DOM state:', {
+    qrReaderExists: !!qrReaderElement,
+    qrReaderChildren: qrReaderElement ? qrReaderElement.children.length : 0,
+    qrReaderInnerHTML: qrReaderElement ? qrReaderElement.innerHTML.substring(0, 200) : 'N/A'
+  });
+  
+  // Ищем все возможные видео элементы
+  const allVideos = document.querySelectorAll('video');
+  debugLog('📹 All video elements found:', allVideos.length);
+  allVideos.forEach((vid, index) => {
+    debugLog(`📹 Video ${index}:`, {
+      id: vid.id,
+      className: vid.className,
+      src: vid.src,
+      srcObject: !!vid.srcObject,
+      parent: vid.parentElement?.tagName,
+      parentId: vid.parentElement?.id
+    });
+  });
+  
   const video = document.querySelector('#qr-reader video');
+  debugLog('🎯 Target video found:', !!video);
   
   if (video) {
     debugLog('📹 Video element found:', {
@@ -916,9 +1004,33 @@ const forceShowVideo = () => {
     }
     
     return true;
+  } else {
+    errorLog('❌ Video element not found in #qr-reader');
+    
+    // Дополнительная диагностика
+    debugLog('🔍 Detailed DOM inspection:');
+    if (qrReaderElement) {
+      debugLog('📋 QR Reader element details:', {
+        tagName: qrReaderElement.tagName,
+        id: qrReaderElement.id,
+        classList: Array.from(qrReaderElement.classList),
+        childElementCount: qrReaderElement.childElementCount,
+        innerHTML: qrReaderElement.innerHTML
+      });
+      
+      // Проверяем каждого ребенка
+      Array.from(qrReaderElement.children).forEach((child, index) => {
+        debugLog(`👶 Child ${index}:`, {
+          tagName: child.tagName,
+          id: child.id,
+          className: child.className,
+          hasVideo: child.querySelector('video') !== null
+        });
+      });
+    }
+    
+    return false;
   }
-  return false;
-};
 
 // Скрываем элементы UI Html5QrcodeScanner
 const hideHtml5QrcodeUI = () => {
