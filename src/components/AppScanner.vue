@@ -1033,6 +1033,7 @@ const forceShowVideo = () => {
     
     return false;
   }
+};
 
 // Скрываем элементы UI Html5QrcodeScanner
 const hideHtml5QrcodeUI = () => {
@@ -1410,7 +1411,6 @@ const goBack = () => {
 </script>
 
 <style scoped>
-/* Стили остаются без изменений, так как они уже хорошо работают */
 .app-scanner-container {
   position: relative;
   width: 100%;
