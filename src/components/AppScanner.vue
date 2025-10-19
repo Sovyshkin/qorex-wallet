@@ -22,8 +22,15 @@
         </svg>
       </button>
 
-      <!-- Видео сканера -->
-      <div id="qr-reader" ref="qrReader" class="qr-reader-container"></div>
+      <!-- Простое видео с камеры -->
+      <video 
+        ref="videoElement" 
+        class="camera-video" 
+        autoplay 
+        playsinline 
+        muted
+        @loadedmetadata="onVideoLoaded"
+      ></video>
 
       <!-- Оверлей с рамкой -->
       <div class="scanner-overlay">
@@ -42,8 +49,8 @@
         </label>
 
         <!-- Основная кнопка сканирования -->
-        <button class="scan-button" @click="manualScan">
-          <div class="scan-button-circle"></div>
+        <button class="scan-button" @click="captureAndScanManual" :disabled="!cameraReady || isManualScanning">
+          <div class="scan-button-circle" :class="{ scanning: isManualScanning }"></div>
         </button>
 
         <!-- Кнопка фонарика -->
@@ -84,538 +91,39 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import LoaderScanner from "./LoaderScanner.vue";
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useWalletStore } from "@/stores/walletStore";
+import { useWalletStore } from '@/stores/walletStore';
+import { Html5Qrcode } from 'html5-qrcode';
+import LoaderScanner from './LoaderScanner.vue';
 
-const walletStore = useWalletStore()
-const { t } = useI18n();
 const router = useRouter();
-const qrReader = ref(null);
+const { t } = useI18n();
+const walletStore = useWalletStore();
+
+// Refs для работы с видео
+const videoElement = ref(null);
+const stream = ref(null);
+const scanInterval = ref(null);
+
+// Состояние сканнера
+const cameraReady = ref(false);
+const isManualScanning = ref(false);
 const selectedImage = ref(null);
-const isTorchOn = ref(false);
-const scanResult = ref(null);
 const showMessage = ref(false);
 const messageText = ref('');
 const messageType = ref('info');
+const torchEnabled = ref(false);
 
-let scanner = null;
-let isScanning = false;
-let videoObserver = null;
-let frameScanner = null;
-let videoElement = null;
-
-// Определяем Telegram
-const isTelegram = () => {
-  return window.Telegram?.WebApp || 
-         navigator.userAgent.includes('Telegram') ||
-         navigator.userAgent.includes('TelegramBot') ||
-         window.TelegramWebviewProxy ||
-         window.external?.notify ||
-         document.referrer.includes('telegram');
-};
-
-const debugLog = (message, data = null) => {
-  const timestamp = new Date().toISOString();
-  const prefix = `[QR_SCANNER_DEBUG ${timestamp}]`;
-  
-  if (data) {
-    console.log(prefix, message, data);
-  } else {
-    console.log(prefix, message);
-  }
-};
-
-const errorLog = (message, error = null) => {
-  const timestamp = new Date().toISOString();
-  const prefix = `[QR_SCANNER_ERROR ${timestamp}]`;
-  
-  if (error) {
-    console.error(prefix, message, error);
-  } else {
-    console.error(prefix, message);
-  }
-};
-
-// Инициализация сканера
-const initializeScanner = () => {
-  debugLog('🎯 Initializing scanner');
-  
-  if (scanner) {
-    try {
-      scanner.clear();
-    } catch (e) {
-      errorLog('Error clearing previous scanner', e);
-    }
-  }
-
-  const config = {
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
-    rememberLastUsedCamera: true,
-    useBarCodeDetectorIfSupported: false,
-    aspectRatio: 1.0,
-    showTorchButtonIfSupported: false,
-    showZoomSliderIfSupported: false,
-    videoConstraints: isTelegram() ? {
-      video: true
-    } : {
-      facingMode: "environment",
-      width: { ideal: 1280, min: 640 },
-      height: { ideal: 720, min: 480 }
-    },
-    disableFlip: true,
-    verbose: false
-  };
-
-  try {
-    scanner = new Html5QrcodeScanner("qr-reader", config, false);
-    debugLog('✅ Scanner created successfully');
-  } catch (error) {
-    errorLog('Failed to create scanner', error);
-    showMessageToUser('Ошибка инициализации сканера', 'error', 5000);
-  }
-};
-
-// Запуск сканера
-const startScanner = () => {
-  debugLog('🚀 Starting scanner');
-  
-  if (isScanning) {
-    debugLog('⚠️ Scanner already running');
-    return;
-  }
-
-  if (!scanner) {
-    errorLog('❌ Scanner not initialized');
-    return;
-  }
-
-  try {
-    scanner.render(
-      (decodedText) => {
-        debugLog('Built-in scanner detected QR (ignoring):', decodedText);
-      },
-      (errorMessage) => {
-        debugLog('Built-in scanner error:', errorMessage);
-      }
-    );
-
-    isScanning = true;
-    debugLog('✅ Scanner render called');
-
-    // Наблюдатель за видео элементом
-    setupVideoObserver();
-    
-    // Для Telegram добавляем специальную обработку
-    if (isTelegram()) {
-      setupTelegramHandlers();
-    }
-
-    // Скрываем UI элементы
-    setTimeout(hideHtml5QrcodeUI, 100);
-    setTimeout(hideHtml5QrcodeUI, 500);
-    setTimeout(hideHtml5QrcodeUI, 1000);
-        
-  } catch (error) {
-    errorLog('Scanner start failed', error);
-    showMessageToUser('Ошибка запуска сканера', 'error', 4000);
-    isScanning = false;
-  }
-};
-
-// Обработчики для Telegram
-const setupTelegramHandlers = () => {
-  debugLog('📱 Setting up Telegram handlers');
-  
-  // Обработчик клика для активации видео
-  const activateVideo = () => {
-    const video = document.querySelector('#qr-reader video');
-    if (video && video.paused) {
-      debugLog('👆 User interaction detected, activating video');
-      
-      video.muted = true;
-      video.playsInline = true;
-      video.setAttribute('playsinline', 'true');
-      video.setAttribute('webkit-playsinline', 'true');
-      
-      video.play().then(() => {
-        debugLog('✅ Video play successful after user interaction');
-        showMessageToUser('Камера активирована', 'success', 2000);
-      }).catch(err => {
-        errorLog('Video play failed after user interaction', err);
-      });
-    }
-  };
-
-  // Добавляем обработчики для активации видео
-  document.addEventListener('click', activateVideo);
-  document.addEventListener('touchstart', activateVideo);
-  
-  // Сохраняем для очистки
-  window.telegramVideoActivator = activateVideo;
-};
-
-// Наблюдатель за видео
-const setupVideoObserver = () => {
-  if (videoObserver) {
-    videoObserver.disconnect();
-  }
-
-  videoObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-        const video = document.querySelector('#qr-reader video');
-        if (video && !video.dataset.configured) {
-          debugLog('✅ New video element found and configuring');
-          video.dataset.configured = 'true';
-          videoElement = video;
-          
-          // Применяем стили
-          applyVideoStyles(video);
-          
-          // Запускаем сканирование кадров
-          video.addEventListener('loadeddata', () => {
-            debugLog('📹 Video data loaded, starting frame scanning');
-            setTimeout(() => {
-              startFrameScanning();
-              showMessageToUser('Сканирование активно', 'info', 2000);
-            }, 1000);
-          });
-        }
-        
-        // Скрываем UI элементы
-        hideHtml5QrcodeUI();
-      }
-    });
-  });
-
-  const qrReaderElement = document.getElementById('qr-reader');
-  if (qrReaderElement) {
-    videoObserver.observe(qrReaderElement, {
-      childList: true,
-      subtree: true
-    });
-  }
-};
-
-// Применение стилей к видео
-const applyVideoStyles = (video) => {
-  video.style.cssText = `
-    display: block !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: cover !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 1 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    background: black !important;
-  `;
-};
-
-// Скрытие UI элементов сканера
-const hideHtml5QrcodeUI = () => {
-  try {
-    const elementsToHide = [
-      '#qr-reader__dashboard_section',
-      '#qr-reader__camera_selection', 
-      '#qr-reader__filescan_input',
-      '#html5-qrcode-button-camera-permission',
-      '#html5-qrcode-anchor-scan-type-change',
-      '#qr-reader__dashboard',
-      '#qr-reader__header_message',
-      '#qr-shaded-region',
-      '.html5-qrcode-element',
-      '[id*="html5-qrcode-help"]',
-      '[id*="qr-reader-help"]',
-      '[class*="help"]',
-      '[class*="info-button"]',
-      '.qr-code-help',
-      '.html5-qrcode-info'
-    ];
-    
-    elementsToHide.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        element.style.display = 'none';
-        element.style.visibility = 'hidden';
-      }
-    });
-  } catch (error) {
-    // Игнорируем ошибки
-  }
-};
-
-// Сканирование кадров
-const startFrameScanning = () => {
-  if (frameScanner) {
-    clearInterval(frameScanner);
-  }
-  
-  frameScanner = setInterval(() => {
-    if (isScanning && videoElement && videoElement.readyState === 4) {
-      captureAndScanFrame();
-    }
-  }, 300);
-};
-
-const captureAndScanFrame = async () => {
-  if (!videoElement || videoElement.readyState !== 4) return;
-  
-  try {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = videoElement.videoWidth || 640;
-    canvas.height = videoElement.videoHeight || 480;
-    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-    
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      
-      try {
-        const tempDiv = document.createElement('div');
-        tempDiv.id = 'temp-frame-scan-region';
-        tempDiv.style.display = 'none';
-        document.body.appendChild(tempDiv);
-        
-        const { Html5Qrcode } = await import('html5-qrcode');
-        const html5QrCode = new Html5Qrcode('temp-frame-scan-region');
-        const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
-        
-        const result = await html5QrCode.scanFile(file, true);
-        if (result) {
-          onScanSuccess(result);
-        }
-        
-        await html5QrCode.clear();
-        if (document.getElementById('temp-frame-scan-region')) {
-          document.body.removeChild(tempDiv);
-        }
-      } catch (scanError) {
-        // QR-код не найден - это нормально
-        const tempDiv = document.getElementById('temp-frame-scan-region');
-        if (tempDiv) {
-          document.body.removeChild(tempDiv);
-        }
-      }
-    }, 'image/jpeg', 0.8);
-  } catch (error) {
-    // Игнорируем ошибки
-  }
-};
-
-// Обработка успешного сканирования
-const onScanSuccess = (decodedText) => {
-  const isPaymentQR = decodedText && (
-    decodedText.toLowerCase().includes('bitcoin:') ||
-    decodedText.toLowerCase().includes('ethereum:') ||
-    decodedText.toLowerCase().includes('ton:') ||
-    decodedText.startsWith('0x') ||
-    decodedText.match(/^[13][a-km-z1-9]{25,34}$/i) ||
-    decodedText.match(/^[A-Za-z0-9]{48}$/) ||
-    decodedText.includes('amount=') ||
-    decodedText.includes('value=') ||
-    decodedText.length > 20
-  );
-  
-  scanResult.value = decodedText;
-  
-  if (isPaymentQR) {
-    showMessageToUser('Платежный QR-код распознан!', 'success', 1500);
-  } else {
-    showMessageToUser('QR-код найден!', 'success', 1500);
-  }
-  
-  walletStore.qrTake(decodedText);
-};
-
-// Ручное сканирование
-const manualScan = async () => {
-  if (!isScanning) {
-    showMessageToUser('Запуск сканера...', 'info', 2000);
-    
-    if (!scanner) {
-      initializeScanner();
-    }
-    
-    startScanner();
-  } else {
-    showMessageToUser('Сканирование активно', 'info', 2000);
-  }
-};
-
-// Фонарик
-const toggleTorch = async () => {
-  const video = document.querySelector('#qr-reader video');
-  if (!video || !video.srcObject) {
-    showMessageToUser('Фонарик недоступен', 'error', 2000);
-    return;
-  }
-
-  const stream = video.srcObject;
-  const videoTrack = stream.getVideoTracks()[0];
-  
-  if (!videoTrack || !("applyConstraints" in videoTrack)) {
-    showMessageToUser('Фонарик не поддерживается', 'error', 2000);
-    return;
-  }
-
-  isTorchOn.value = !isTorchOn.value;
-  try {
-    await videoTrack.applyConstraints({
-      advanced: [{ torch: isTorchOn.value }],
-    });
-    showMessageToUser(isTorchOn.value ? 'Фонарик включен' : 'Фонарик выключен', 'info', 1000);
-  } catch (error) {
-    showMessageToUser('Фонарик не поддерживается на этом устройстве', 'error', 3000);
-    isTorchOn.value = false;
-  }
-};
-
-// Загрузка файла
-const handleFileUpload = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    showMessageToUser('Пожалуйста, выберите изображение', 'error', 3000);
-    return;
-  }
-
-  const maxSize = 10 * 1024 * 1024;
-  if (file.size > maxSize) {
-    showMessageToUser('Файл слишком большой. Максимальный размер: 10MB', 'error', 3000);
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    selectedImage.value = e.target.result;
-  };
-  reader.readAsDataURL(file);
-  
-  event.target.value = '';
-};
-
-// Сканирование из изображения
-const scanFromImage = async () => {
-  if (!selectedImage.value) return;
-
-  showMessageToUser('Сканирование изображения...', 'info', 5000);
-  
-  try {
-    const tempDiv = document.createElement('div');
-    tempDiv.id = 'temp-scan-region';
-    tempDiv.style.display = 'none';
-    document.body.appendChild(tempDiv);
-    
-    const { Html5Qrcode } = await import('html5-qrcode');
-    const html5QrCode = new Html5Qrcode('temp-scan-region');
-    
-    try {
-      const response = await fetch(selectedImage.value);
-      const blob = await response.blob();
-      const file = new File([blob], 'image.jpg', { type: blob.type });
-      
-      const result = await html5QrCode.scanFile(file, true);
-      handleImageQRResult(result);
-      
-    } catch (scanError) {
-      showMessageToUser('QR-код не найден в изображении', 'error', 4000);
-    } finally {
-      try {
-        await html5QrCode.clear();
-      } catch (e) {
-        // Игнорируем ошибки
-      }
-      if (document.getElementById('temp-scan-region')) {
-        document.body.removeChild(tempDiv);
-      }
-    }
-    
-  } catch (error) {
-    showMessageToUser('Ошибка сканирования изображения', 'error', 4000);
-  }
-};
-
-const handleImageQRResult = (qrData) => {
-  scanResult.value = qrData;
-  showMessageToUser('QR-код найден!', 'success', 2000);
-  setTimeout(() => {
-    walletStore.qrTake(scanResult.value);
-    goBack();
-  }, 500);
-};
-
-// Очистка изображения
-const clearImage = () => {
-  selectedImage.value = null;
-};
-
-// Остановка сканера
-const stopScanner = () => {
-  debugLog('🛑 Stopping scanner');
-  
-  try {
-    stopFrameScanning();
-    
-    if (videoObserver) {
-      videoObserver.disconnect();
-      videoObserver = null;
-    }
-    
-    if (scanner && isScanning) {
-      scanner.clear().catch((error) => {
-        errorLog('Error clearing scanner', error);
-      });
-      isScanning = false;
-    }
-    
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject;
-      stream.getTracks().forEach(track => {
-        if (track.readyState !== 'ended') {
-          track.stop();
-        }
-      });
-      videoElement.srcObject = null;
-    }
-    
-    videoElement = null;
-    
-    // Очищаем обработчики Telegram
-    if (window.telegramVideoActivator) {
-      document.removeEventListener('click', window.telegramVideoActivator);
-      document.removeEventListener('touchstart', window.telegramVideoActivator);
-      delete window.telegramVideoActivator;
-    }
-    
-  } catch (error) {
-    errorLog('Error during scanner stop', error);
-  }
-};
-
-const stopFrameScanning = () => {
-  if (frameScanner) {
-    clearInterval(frameScanner);
-    frameScanner = null;
-  }
-};
-
-// Сообщения пользователю
-const showMessageToUser = (text, type = 'info', duration = 5000) => {
+// Функция для отображения сообщений
+const showMessageWithType = (text, type = 'info', duration = 3000) => {
   messageText.value = text;
   messageType.value = type;
   showMessage.value = true;
   
   setTimeout(() => {
-    showMessage.value = false;
+    hideMessage();
   }, duration);
 };
 
@@ -623,137 +131,360 @@ const hideMessage = () => {
   showMessage.value = false;
 };
 
-// Навигация
-const goBack = () => {
+// Инициализация камеры
+const initCamera = async () => {
   try {
-    // Восстанавливаем стили
-    if (window.originalBodyStyle !== undefined) {
-      document.body.style.cssText = window.originalBodyStyle;
-      delete window.originalBodyStyle;
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' }, // Предпочитаем заднюю камеру
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      }
+    };
+
+    stream.value = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    if (videoElement.value) {
+      videoElement.value.srcObject = stream.value;
+      await videoElement.value.play();
     }
-    
-    if (window.originalHtmlStyle !== undefined) {
-      document.documentElement.style.cssText = window.originalHtmlStyle;
-      delete window.originalHtmlStyle;
-    }
-    
-    stopScanner();
-    
-    setTimeout(() => {
-      router.push({ name: 'main' }).catch(() => {
-        router.push('/').catch(() => {
-          window.location.href = '/';
-        });
-      });
-    }, 100);
-    
   } catch (error) {
-    try {
-      router.push('/');
-    } catch {
-      window.location.href = '/';
+    console.error('Ошибка доступа к камере:', error);
+    
+    let errorMessage = 'Не удалось запустить камеру';
+    
+    if (error.name === 'NotAllowedError') {
+      errorMessage = 'Доступ к камере запрещен. Разрешите доступ в настройках браузера';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = 'Камера не найдена';
+    } else if (error.name === 'NotSupportedError') {
+      errorMessage = 'Ваш браузер не поддерживает доступ к камере';
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = 'Камера уже используется другим приложением';
     }
+    
+    showMessageWithType(errorMessage, 'error', 6000);
   }
 };
 
-// Инициализация
-onMounted(async () => {
-  debugLog('🚀 Component mounted');
-  
-  walletStore.loaderScan = false;
-  
-  // Сохраняем оригинальные стили
-  const originalBodyStyle = document.body.style.cssText;
-  const originalHtmlStyle = document.documentElement.style.cssText;
-  
-  document.body.style.cssText = `
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    width: 100vw !important;
-    height: 100vh !important;
-  `;
-  
-  document.documentElement.style.cssText = `
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-  `;
-  
-  window.originalBodyStyle = originalBodyStyle;
-  window.originalHtmlStyle = originalHtmlStyle;
-  
-  // Обработчик Escape
-  const handleEscape = (event) => {
-    if (event.key === 'Escape') {
-      goBack();
+// Обработчик загрузки видео
+const onVideoLoaded = () => {
+  cameraReady.value = true;
+  // Добавляем небольшую задержку чтобы видео полностью инициализировалось
+  setTimeout(() => {
+    if (cameraReady.value) {
+      startContinuousScanning();
     }
-  };
-  document.addEventListener('keydown', handleEscape);
-  window.escapeHandler = handleEscape;
-  
+  }, 500);
+};
+
+// Захват кадра из видео
+const captureFrame = async () => {
+  if (!videoElement.value || !cameraReady.value) return null;
+
   try {
-    // Проверяем доступ к камере
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: true 
+    // Проверяем готовность видео
+    if (videoElement.value.readyState < 2) {
+      console.warn('Видео еще не готово для захвата');
+      return null;
+    }
+
+    const videoWidth = videoElement.value.videoWidth;
+    const videoHeight = videoElement.value.videoHeight;
+    
+    if (!videoWidth || !videoHeight || videoWidth <= 0 || videoHeight <= 0) {
+      console.warn('Некорректные размеры видео:', { videoWidth, videoHeight });
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    if (!context) {
+      console.error('Не удалось получить 2D контекст canvas');
+      return null;
+    }
+    
+    // Устанавливаем размеры как у видео
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    
+    // Рисуем текущий кадр видео на canvas
+    context.drawImage(videoElement.value, 0, 0, videoWidth, videoHeight);
+    
+    // Конвертируем в Blob для сканирования
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((result) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(new Error('Не удалось создать blob'));
+        }
+      }, 'image/jpeg', 0.8);
     });
-    
-    // Останавливаем тестовый поток
-    stream.getTracks().forEach(track => track.stop());
-    
-    // Инициализируем и запускаем сканер
-    initializeScanner();
-    
-    if (isTelegram()) {
-      showMessageToUser('Нажмите на экран для активации камеры', 'info', 5000);
-      setTimeout(() => startScanner(), 1000);
-    } else {
-      setTimeout(() => startScanner(), 100);
-    }
-    
-  } catch (cameraError) {
-    errorLog('Camera initialization failed', cameraError);
-    
-    if (cameraError.name === 'NotAllowedError') {
-      showMessageToUser('Доступ к камере запрещен. Разрешите доступ в настройках браузера.', 'error', 6000);
-    } else if (cameraError.name === 'NotFoundError') {
-      showMessageToUser('Камера не найдена', 'error', 6000);
-    } else {
-      showMessageToUser('Ошибка доступа к камере', 'error', 6000);
-    }
+
+    return blob;
+  } catch (error) {
+    console.error('Ошибка при захвате кадра:', error);
+    return null;
   }
+};
+
+// Сканирование blob с помощью html5-qrcode
+const scanBlob = async (blob) => {
+  try {
+    // Создаем временный div для сканирования
+    const tempDiv = document.createElement('div');
+    tempDiv.id = 'temp-scan-region';
+    tempDiv.style.display = 'none';
+    document.body.appendChild(tempDiv);
+    
+    const html5QrCode = new Html5Qrcode('temp-scan-region');
+    const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+    
+    try {
+      const result = await html5QrCode.scanFile(file, true);
+      return result;
+    } finally {
+      try {
+        await html5QrCode.clear();
+      } catch (e) {
+        // Игнорируем ошибки очистки
+      }
+      if (document.getElementById('temp-scan-region')) {
+        document.body.removeChild(tempDiv);
+      }
+    }
+  } catch (error) {
+    // QR-код не найден - это нормально
+    return null;
+  }
+};
+
+// Проверка, является ли строка корректной ссылкой для оплаты
+const isValidPaymentUrl = (url) => {
+  try {
+    const urlObj = new URL(url);
+    // Проверяем наличие параметров для оплаты
+    return urlObj.searchParams.has('sum') || 
+           urlObj.searchParams.has('amount') || 
+           url.includes('pay') || 
+           url.includes('payment') ||
+           url.includes('invoice');
+  } catch {
+    return false;
+  }
+};
+
+// Непрерывное сканирование каждую секунду
+const startContinuousScanning = () => {
+  if (scanInterval.value) {
+    clearInterval(scanInterval.value);
+  }
+
+  scanInterval.value = setInterval(async () => {
+    if (!cameraReady.value || walletStore.loaderScan || isManualScanning.value) return;
+
+    try {
+      const blob = await captureFrame();
+      if (!blob) return;
+
+      const qrData = await scanBlob(blob);
+      
+      if (qrData && isValidPaymentUrl(qrData)) {
+        console.log('QR-код найден:', qrData);
+        handleQRDetected(qrData);
+      }
+    } catch (error) {
+      console.error('Ошибка при автоматическом сканировании:', error);
+    }
+  }, 1000); // Каждую секунду
+};
+
+// Остановка непрерывного сканирования
+const stopContinuousScanning = () => {
+  if (scanInterval.value) {
+    clearInterval(scanInterval.value);
+    scanInterval.value = null;
+  }
+};
+
+// Обработка найденного QR-кода
+const handleQRDetected = async (qrData) => {
+  try {
+    // Останавливаем сканирование
+    stopContinuousScanning();
+    
+    showMessageWithType('QR-код найден! Обрабатываем...', 'success', 2000);
+    
+    // Отправляем в store
+    await walletStore.qrTake(qrData);
+    
+  } catch (error) {
+    console.error('Ошибка обработки QR-кода:', error);
+    showMessageWithType('Ошибка обработки QR-кода', 'error');
+    
+    // Перезапускаем сканирование через 3 секунды
+    setTimeout(() => {
+      startContinuousScanning();
+    }, 3000);
+  }
+};
+
+// Ручное сканирование (по кнопке)
+const captureAndScanManual = async () => {
+  if (!cameraReady.value || isManualScanning.value) return;
+
+  isManualScanning.value = true;
+  showMessageWithType('Сканирование...', 'info', 0); // Показываем до завершения
+
+  try {
+    const blob = await captureFrame();
+    if (!blob) {
+      throw new Error('Не удалось захватить кадр');
+    }
+
+    const qrData = await scanBlob(blob);
+    
+    if (qrData) {
+      if (isValidPaymentUrl(qrData)) {
+        showMessageWithType('QR-код распознан!', 'success', 2000);
+        setTimeout(() => {
+          handleQRDetected(qrData);
+        }, 500);
+      } else {
+        showMessageWithType('QR-код не содержит данных для оплаты', 'error', 3000);
+      }
+    } else {
+      showMessageWithType('QR-код не найден. Попробуйте еще раз', 'error', 3000);
+    }
+  } catch (error) {
+    console.error('Ошибка ручного сканирования:', error);
+    showMessageWithType('Ошибка сканирования', 'error', 3000);
+  } finally {
+    isManualScanning.value = false;
+  }
+};
+
+// Переключение фонарика
+const toggleTorch = async () => {
+  if (!stream.value) return;
+
+  try {
+    const track = stream.value.getVideoTracks()[0];
+    const capabilities = track.getCapabilities();
+
+    if (capabilities.torch) {
+      torchEnabled.value = !torchEnabled.value;
+      await track.applyConstraints({
+        advanced: [{ torch: torchEnabled.value }]
+      });
+      showMessageWithType(torchEnabled.value ? 'Фонарик включен' : 'Фонарик выключен', 'info', 1000);
+    } else {
+      showMessageWithType('Фонарик не поддерживается', 'error');
+    }
+  } catch (error) {
+    console.error('Ошибка переключения фонарика:', error);
+    showMessageWithType('Ошибка фонарика', 'error');
+  }
+};
+
+// Загрузка файла изображения
+const handleFileUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Проверяем тип файла
+  if (!file.type.startsWith('image/')) {
+    showMessageWithType('Пожалуйста, выберите изображение', 'error', 3000);
+    event.target.value = ''; // Сбрасываем input
+    return;
+  }
+
+  // Проверяем размер файла (максимум 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    showMessageWithType('Файл слишком большой. Максимальный размер 10MB', 'error', 3000);
+    event.target.value = ''; // Сбрасываем input
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    selectedImage.value = e.target.result;
+    stopContinuousScanning(); // Останавливаем сканирование при просмотре изображения
+  };
+  reader.onerror = () => {
+    showMessageWithType('Ошибка чтения файла', 'error', 3000);
+  };
+  reader.readAsDataURL(file);
+  
+  // Сбрасываем input для возможности повторной загрузки того же файла
+  event.target.value = '';
+};
+
+// Сканирование из загруженного изображения
+const scanFromImage = async () => {
+  if (!selectedImage.value) return;
+
+  showMessageWithType('Анализируем изображение...', 'info', 0);
+
+  try {
+    const response = await fetch(selectedImage.value);
+    const blob = await response.blob();
+    
+    const qrData = await scanBlob(blob);
+    
+    if (qrData) {
+      if (isValidPaymentUrl(qrData)) {
+        showMessageWithType('QR-код распознан из изображения!', 'success', 2000);
+        setTimeout(() => {
+          handleQRDetected(qrData);
+        }, 500);
+      } else {
+        showMessageWithType('QR-код не содержит данных для оплаты', 'error', 3000);
+      }
+    } else {
+      showMessageWithType('QR-код не найден в изображении', 'error', 3000);
+    }
+  } catch (error) {
+    console.error('Ошибка сканирования изображения:', error);
+    showMessageWithType('Ошибка анализа изображения', 'error', 3000);
+  }
+};
+
+// Очистка выбранного изображения
+const clearImage = () => {
+  selectedImage.value = null;
+  startContinuousScanning(); // Возобновляем сканирование
+};
+
+// Остановка камеры
+const stopCamera = () => {
+  stopContinuousScanning();
+  
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop());
+    stream.value = null;
+  }
+  
+  cameraReady.value = false;
+};
+
+// Возврат назад
+const goBack = () => {
+  stopCamera();
+  router.back();
+};
+
+// Lifecycle hooks
+onMounted(async () => {
+  await nextTick();
+  await initCamera();
 });
 
-onBeforeUnmount(() => {
-  try {
-    // Очищаем обработчики
-    if (window.telegramVideoActivator) {
-      document.removeEventListener('click', window.telegramVideoActivator);
-      document.removeEventListener('touchstart', window.telegramVideoActivator);
-      delete window.telegramVideoActivator;
-    }
-    
-    if (window.escapeHandler) {
-      document.removeEventListener('keydown', window.escapeHandler);
-      delete window.escapeHandler;
-    }
-    
-    // Восстанавливаем стили
-    if (window.originalBodyStyle !== undefined) {
-      document.body.style.cssText = window.originalBodyStyle;
-      delete window.originalBodyStyle;
-    }
-    
-    if (window.originalHtmlStyle !== undefined) {
-      document.documentElement.style.cssText = window.originalHtmlStyle;
-      delete window.originalHtmlStyle;
-    }
-    
-    stopScanner();
-  } catch (error) {
-    // Игнорируем ошибки
-  }
+onUnmounted(() => {
+  stopCamera();
 });
 </script>
 
@@ -774,46 +505,14 @@ onBeforeUnmount(() => {
   z-index: 1000;
 }
 
-.qr-reader-container {
+.camera-video {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
   z-index: 1;
-}
-
-#qr-reader {
-  width: 100% !important;
-  height: 100% !important;
-  position: relative !important;
-}
-
-/* Скрываем UI элементы сканера */
-#qr-reader__dashboard_section,
-#qr-reader__camera_selection,
-#qr-reader__filescan_input,
-#qr-reader__header_message,
-#qr-shaded-region,
-.html5-qrcode-element,
-[id*="html5-qrcode-help"],
-[id*="qr-reader-help"],
-[class*="help"],
-[class*="info-button"],
-.qr-code-help,
-.html5-qrcode-info,
-#qr-reader > div > div:last-child,
-#qr-reader [style*="position: absolute"][style*="top"][style*="right"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-}
-
-#qr-reader__scan_region {
-  margin: 0 !important;
-  padding: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
 }
 
 /* Оверлей с рамкой сканирования */
@@ -943,6 +642,27 @@ onBeforeUnmount(() => {
   height: 60px;
   width: 60px;
   background: #fff;
+  transition: all 0.3s ease;
+}
+
+.scan-button-circle.scanning {
+  background: #4caf50;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Кнопка закрытия */
@@ -1203,51 +923,3 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<!-- Глобальные стили для видео -->
-<style>
-#qr-reader video {
-  display: block !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  object-fit: cover !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  z-index: 1 !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  background: black !important;
-}
-
-#qr-reader,
-#qr-reader > div,
-#qr-reader__scan_region {
-  display: block !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  position: relative !important;
-  background: black !important;
-}
-
-#qr-reader__dashboard_section,
-#qr-reader__camera_selection,
-#qr-reader__filescan_input,
-#qr-reader__header_message,
-#qr-shaded-region,
-.html5-qrcode-element,
-[id*="html5-qrcode-help"],
-[id*="qr-reader-help"],
-[class*="help"],
-[class*="info-button"],
-.qr-code-help,
-.html5-qrcode-info,
-#qr-reader > div > div:last-child,
-#qr-reader [style*="position: absolute"][style*="top"][style*="right"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  position: absolute !important;
-  left: -9999px !important;
-  top: -9999px !important;
-}
-</style>
