@@ -108,8 +108,44 @@ let videoObserver = null;
 let frameScanner = null; // Для сканирования кадров
 let videoElement = null; // Ссылка на видео элемент
 
+// Функция для подробного логирования
+const debugLog = (message, data = null) => {
+  const timestamp = new Date().toISOString();
+  const prefix = `[QR_SCANNER_DEBUG ${timestamp}]`;
+  
+  if (data) {
+    console.log(prefix, message, data);
+  } else {
+    console.log(prefix, message);
+  }
+};
+
+// Функция для логирования ошибок
+const errorLog = (message, error = null) => {
+  const timestamp = new Date().toISOString();
+  const prefix = `[QR_SCANNER_ERROR ${timestamp}]`;
+  
+  if (error) {
+    console.error(prefix, message, error);
+    console.error(prefix, 'Error stack:', error.stack);
+  } else {
+    console.error(prefix, message);
+  }
+};
+
 // Автоматический запуск Html5QrcodeScanner при монтировании
 onMounted(async () => {
+  debugLog('🚀 Component mounted, starting initialization');
+  debugLog('🌐 Environment info:', {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    cookieEnabled: navigator.cookieEnabled,
+    onLine: navigator.onLine,
+    windowSize: { width: window.innerWidth, height: window.innerHeight },
+    screenSize: { width: screen.width, height: screen.height }
+  });
+  
   // Показываем сообщение о загрузке сразу
   showMessageToUser('Запуск камеры...', 'info', 3000);
   
@@ -150,34 +186,74 @@ onMounted(async () => {
     
     // Сначала проверяем доступ к камере с упрощенными настройками
     try {
+      debugLog('📱 Starting camera access check');
+      
       // Улучшенная детекция Telegram WebApp
-      const isTelegram = window.Telegram?.WebApp || 
-                       navigator.userAgent.includes('Telegram') ||
-                       navigator.userAgent.includes('TelegramBot') ||
-                       window.TelegramWebviewProxy ||
-                       window.external?.notify ||
-                       document.referrer.includes('telegram');
+      const telegramWebApp = window.Telegram?.WebApp;
+      const telegramUserAgent = navigator.userAgent.includes('Telegram');
+      const telegramBot = navigator.userAgent.includes('TelegramBot');
+      const telegramProxy = window.TelegramWebviewProxy;
+      const externalNotify = window.external?.notify;
+      const telegramReferrer = document.referrer.includes('telegram');
+      
+      const isTelegram = telegramWebApp || telegramUserAgent || telegramBot || telegramProxy || externalNotify || telegramReferrer;
+      
+      debugLog('🔍 Telegram detection results:', {
+        telegramWebApp: !!telegramWebApp,
+        telegramUserAgent,
+        telegramBot,
+        telegramProxy: !!telegramProxy,
+        externalNotify: !!externalNotify,
+        telegramReferrer,
+        isTelegram,
+        windowTelegram: !!window.Telegram,
+        referrer: document.referrer
+      });
       
       // Добавляем обработчик клика для активации видео в Telegram
       if (isTelegram) {
+        debugLog('📲 Setting up Telegram video activation handlers');
+        
         const activateVideo = () => {
+          debugLog('👆 User interaction detected, attempting video activation');
           const video = document.querySelector('#qr-reader video');
-          if (video && video.paused) {
-            video.muted = true;
-            video.playsInline = true;
-            video.play().then(() => {
-              // Убираем обработчик после успешной активации
-              document.removeEventListener('click', activateVideo);
-              document.removeEventListener('touchstart', activateVideo);
-            }).catch(err => {
-              console.log('Click activation failed:', err);
+          
+          if (video) {
+            debugLog('📹 Video element found:', {
+              paused: video.paused,
+              muted: video.muted,
+              playsInline: video.playsInline,
+              readyState: video.readyState,
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight
             });
+            
+            if (video.paused) {
+              video.muted = true;
+              video.playsInline = true;
+              debugLog('📹 Attempting to play video with user interaction');
+              
+              video.play().then(() => {
+                debugLog('✅ Video play successful after user interaction');
+                showMessageToUser('Камера активирована', 'success', 2000);
+                // Убираем обработчик после успешной активации
+                document.removeEventListener('click', activateVideo);
+                document.removeEventListener('touchstart', activateVideo);
+              }).catch(err => {
+                errorLog('❌ Video play failed after user interaction', err);
+              });
+            } else {
+              debugLog('📹 Video is already playing');
+            }
+          } else {
+            debugLog('❌ Video element not found during user interaction');
           }
         };
         
         // Добавляем обработчики для активации видео по клику
         document.addEventListener('click', activateVideo, { once: false });
         document.addEventListener('touchstart', activateVideo, { once: false });
+        debugLog('📲 Telegram click handlers added');
         
         // Сохраняем для очистки при размонтировании
         window.telegramVideoActivator = activateVideo;
@@ -195,20 +271,52 @@ onMounted(async () => {
         }
       };
       
+      debugLog('📹 Camera constraints:', constraints);
+      debugLog('🔒 Requesting camera permissions...');
+      
+      // Проверяем доступность MediaDevices API
+      if (!navigator.mediaDevices) {
+        throw new Error('MediaDevices API not supported');
+      }
+      
+      if (!navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia not supported');
+      }
+      
       // Пытаемся получить доступ к камере
       // getUserMedia автоматически покажет системный запрос на разрешение
+      debugLog('📹 Calling getUserMedia...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
+      debugLog('✅ Camera stream obtained:', {
+        streamId: stream.id,
+        tracks: stream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          muted: track.muted
+        }))
+      });
+      
       // Останавливаем тестовый поток сразу
-      stream.getTracks().forEach(track => track.stop());
+      debugLog('🛑 Stopping test stream');
+      stream.getTracks().forEach(track => {
+        debugLog(`🛑 Stopping track: ${track.kind} - ${track.label}`);
+        track.stop();
+      });
       
       // Убираем сообщение загрузки
       hideMessage();
       
       // Инициализируем Html5QrcodeScanner и сразу запускаем сканер
+      debugLog('🎯 Initializing scanner');
       initializeScanner();
       
       // Для Telegram увеличиваем задержку
+      const delay = isTelegram ? 1000 : 100;
+      debugLog(`⏱️ Starting scanner with ${delay}ms delay`);
+      
       if (isTelegram) {
         setTimeout(() => startScanner(), 1000);
       } else {
@@ -216,21 +324,28 @@ onMounted(async () => {
       }
       
     } catch (cameraError) {
-      console.error('Camera error:', cameraError);
+      errorLog('❌ Camera initialization failed', cameraError);
       
       if (cameraError.name === 'NotAllowedError') {
+        errorLog('🚫 Camera permission denied');
         showMessageToUser('Доступ к камере запрещен. Разрешите доступ к камере в настройках браузера.', 'error', 6000);
       } else if (cameraError.name === 'NotFoundError') {
+        errorLog('📹 Camera not found');
         showMessageToUser('Камера не найдена. Убедитесь что камера подключена.', 'error', 6000);
+      } else if (cameraError.name === 'NotSupportedError') {
+        errorLog('🚫 Camera not supported');
+        showMessageToUser('Камера не поддерживается на этом устройстве.', 'error', 6000);
       } else if (cameraError.message === 'MediaDevices API not supported') {
+        errorLog('🚫 MediaDevices API not supported');
         showMessageToUser('Камера не поддерживается в этом браузере. Попробуйте открыть приложение в Chrome или Safari.', 'error', 8000);
       } else {
+        errorLog('❓ Unknown camera error');
         showMessageToUser('Ошибка доступа к камере. Попробуйте обновить страницу.', 'error', 6000);
       }
     }
     
   } catch (error) {
-    console.error('Mount error:', error);
+    errorLog('❌ Mount error - unexpected error during initialization', error);
     showMessageToUser('Ошибка инициализации сканера', 'error', 4000);
   }
 });
@@ -266,12 +381,15 @@ onBeforeUnmount(() => {
 });
 
 const initializeScanner = () => {
+  debugLog('🎯 Initializing Html5QrcodeScanner');
+  
   // Очищаем предыдущий сканер если есть
   if (scanner) {
+    debugLog('🧹 Clearing previous scanner');
     try {
       scanner.clear();
     } catch (e) {
-      // Игнорируем ошибки очистки
+      errorLog('⚠️ Error clearing previous scanner', e);
     }
   }
   
@@ -303,38 +421,56 @@ const initializeScanner = () => {
     disableFlip: true, // Отключаем зеркалирование
     verbose: false
   };
+  
+  debugLog('⚙️ Html5QrcodeScanner config:', config);
 
   try {
+    debugLog('🏗️ Creating Html5QrcodeScanner instance');
     scanner = new Html5QrcodeScanner(
       "qr-reader",
       config,
       false
     );
+    debugLog('✅ Html5QrcodeScanner created successfully');
     
   } catch (error) {
+    errorLog('❌ Failed to create Html5QrcodeScanner', error);
     showMessageToUser('Ошибка инициализации сканера: ' + error.message, 'error', 5000);
   }
 };
 
 const startScanner = () => {
-  if (isScanning || !scanner) {
+  debugLog('🚀 Starting scanner');
+  
+  if (isScanning) {
+    debugLog('⚠️ Scanner already running, skipping start');
+    return;
+  }
+  
+  if (!scanner) {
+    errorLog('❌ Scanner not initialized, cannot start');
     return;
   }
   
   const isTelegram = window.Telegram?.WebApp || navigator.userAgent.includes('Telegram');
+  debugLog('📱 Telegram detected:', isTelegram);
   
   try {
+    debugLog('🎬 Rendering Html5QrcodeScanner');
     // Запускаем Html5QrcodeScanner только для получения видеопотока
     scanner.render(
       (decodedText) => {
+        debugLog('🎯 Built-in scanner detected QR (ignoring):', decodedText);
         // Отключаем встроенное сканирование, используем наше сканирование кадров
       },
       (errorMessage) => {
+        debugLog('ℹ️ Built-in scanner error (expected):', errorMessage);
         // Игнорируем ошибки встроенного сканера
       }
     );
     
     isScanning = true;
+    debugLog('✅ Scanner render called, isScanning = true');
     
     // Создаем наблюдатель для отслеживания появления видео элемента
     videoObserver = new MutationObserver((mutations) => {
@@ -550,13 +686,29 @@ const stopFrameScanning = () => {
   }
 };
 const forceShowVideo = () => {
+  debugLog('🎬 forceShowVideo called');
   const video = document.querySelector('#qr-reader video');
+  
   if (video) {
+    debugLog('📹 Video element found:', {
+      paused: video.paused,
+      muted: video.muted,
+      playsInline: video.playsInline,
+      readyState: video.readyState,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      currentTime: video.currentTime,
+      duration: video.duration,
+      networkState: video.networkState,
+      src: video.src || video.srcObject?.id
+    });
+    
     // Сохраняем ссылку на видео элемент для сканирования кадров
     videoElement = video;
     
     // Проверяем, нужно ли обновлять стили
     if (video.dataset.stylesApplied === 'true') {
+      debugLog('🎨 Video styles already applied, skipping');
       return true; // Стили уже применены, не трогаем
     }
     
@@ -573,69 +725,98 @@ const forceShowVideo = () => {
       // Добавляем обработчики только один раз
       if (!video.dataset.telegramHandlersAdded) {
         video.addEventListener('loadstart', () => {
-          console.log('📹 Video: load started');
+          debugLog('📹 [TELEGRAM] Video: load started');
         });
         
         video.addEventListener('loadedmetadata', () => {
-          console.log('📹 Video: metadata loaded', {
+          debugLog('📹 [TELEGRAM] Video: metadata loaded', {
             videoWidth: video.videoWidth,
             videoHeight: video.videoHeight,
-            duration: video.duration
+            duration: video.duration,
+            readyState: video.readyState,
+            networkState: video.networkState
           });
           // Принудительно запускаем после загрузки метаданных
           if (video.paused) {
             video.muted = true;
             video.playsInline = true;
             video.autoplay = true;
-            video.play().catch(err => console.log('Play after metadata failed:', err));
+            debugLog('📹 [TELEGRAM] Attempting play after metadata');
+            video.play().catch(err => errorLog('❌ [TELEGRAM] Play after metadata failed', err));
           }
         });
         
         video.addEventListener('loadeddata', () => {
-          console.log('📹 Video: data loaded');
+          debugLog('📹 [TELEGRAM] Video: data loaded');
           // Еще одна попытка запуска
           if (video.paused) {
             video.muted = true;
             video.playsInline = true;
-            video.play().catch(err => console.log('Play after data failed:', err));
+            debugLog('📹 [TELEGRAM] Attempting play after data loaded');
+            video.play().catch(err => errorLog('❌ [TELEGRAM] Play after data failed', err));
           }
         });
         
         video.addEventListener('canplay', () => {
-          console.log('📹 Video: can start playing');
+          debugLog('📹 [TELEGRAM] Video: can start playing');
           if (video.paused) {
-            video.play().catch(err => console.log('Play on canplay failed:', err));
+            debugLog('📹 [TELEGRAM] Attempting play on canplay');
+            video.play().catch(err => errorLog('❌ [TELEGRAM] Play on canplay failed', err));
           }
         });
         
         video.addEventListener('playing', () => {
-          console.log('📹 Video: is playing successfully');
+          debugLog('✅ [TELEGRAM] Video: is playing successfully!');
+          showMessageToUser('Камера активна', 'success', 2000);
         });
         
         video.addEventListener('pause', () => {
-          console.log('📹 Video: paused');
+          debugLog('⏸️ [TELEGRAM] Video: paused');
           // Пытаемся снова запустить если видео было приостановлено
           setTimeout(() => {
             if (video.paused) {
-              video.play().catch(err => console.log('Resume failed:', err));
+              debugLog('📹 [TELEGRAM] Attempting resume after pause');
+              video.play().catch(err => errorLog('❌ [TELEGRAM] Resume failed', err));
             }
           }, 500);
         });
         
         video.addEventListener('error', (e) => {
-          console.error('📹 Video error:', e);
+          errorLog('❌ [TELEGRAM] Video error occurred', {
+            error: e.target.error,
+            code: e.target.error?.code,
+            message: e.target.error?.message,
+            networkState: video.networkState,
+            readyState: video.readyState
+          });
           showMessageToUser('Ошибка воспроизведения видео. Попробуйте открыть в браузере.', 'error', 5000);
         });
         
         video.addEventListener('stalled', () => {
-          console.log('📹 Video: stalled, attempting restart');
+          debugLog('⏳ [TELEGRAM] Video: stalled, attempting restart');
           if (video.paused) {
-            video.play().catch(err => console.log('Restart failed:', err));
+            video.play().catch(err => errorLog('❌ [TELEGRAM] Restart failed', err));
           }
         });
         
         video.addEventListener('waiting', () => {
-          console.log('📹 Video: waiting for data');
+          debugLog('⏳ [TELEGRAM] Video: waiting for data');
+        });
+        
+        video.addEventListener('emptied', () => {
+          debugLog('�️ [TELEGRAM] Video: emptied');
+        });
+        
+        video.addEventListener('ended', () => {
+          debugLog('🏁 [TELEGRAM] Video: ended');
+        });
+        
+        video.addEventListener('abort', () => {
+          debugLog('🛑 [TELEGRAM] Video: aborted');
+        });
+        
+        video.addEventListener('suspend', () => {
+          debugLog('⏸️ [TELEGRAM] Video: suspended');
         });
         
         video.dataset.telegramHandlersAdded = 'true';
@@ -923,36 +1104,46 @@ const handleImageQRResult = (qrData) => {
 };
 
 const stopScanner = () => {
+  debugLog('🛑 Stopping scanner');
+  
   try {
     // Останавливаем сканирование кадров
+    debugLog('🛑 Stopping frame scanning');
     stopFrameScanning();
     
     // Останавливаем мониторинг видео
     if (window.videoMonitoringInterval) {
+      debugLog('🛑 Clearing video monitoring interval');
       clearInterval(window.videoMonitoringInterval);
       window.videoMonitoringInterval = null;
     }
     
     // Останавливаем наблюдатель первым делом
     if (videoObserver) {
+      debugLog('🛑 Disconnecting video observer');
       videoObserver.disconnect();
       videoObserver = null;
     }
     
     // Останавливаем сканер
     if (scanner && isScanning) {
-      scanner.clear().catch(() => {
-        // Игнорируем ошибки очистки
+      debugLog('🛑 Clearing Html5QrcodeScanner');
+      scanner.clear().catch((error) => {
+        errorLog('⚠️ Error clearing scanner', error);
       });
       isScanning = false;
+    } else {
+      debugLog('ℹ️ Scanner not running or not initialized');
     }
     
     // Принудительно останавливаем все видео потоки
     const video = document.querySelector('#qr-reader video');
     if (video && video.srcObject) {
+      debugLog('🛑 Stopping video tracks');
       const stream = video.srcObject;
       stream.getTracks().forEach(track => {
         if (track.readyState !== 'ended') {
+          debugLog(`🛑 Stopping track: ${track.kind} - ${track.label}`);
           track.stop();
         }
       });
@@ -964,6 +1155,7 @@ const stopScanner = () => {
     
     // Сбрасываем ссылку на видео элемент
     videoElement = null;
+    debugLog('🧹 Video element reference cleared');
     
     // Очищаем маркеры для canvas
     const canvas = document.querySelector('#qr-reader canvas');
@@ -984,8 +1176,10 @@ const stopScanner = () => {
     }
     
   } catch (error) {
-    // Игнорируем ошибки остановки
+    errorLog('⚠️ Error during scanner stop', error);
   }
+  
+  debugLog('✅ Scanner stopped successfully');
 };
 
 const toggleTorch = async () => {
