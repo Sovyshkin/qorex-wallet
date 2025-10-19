@@ -23,6 +23,45 @@ const parseCustomDate = (dateString) => {
   // Преобразуем в строку если это число
   const dateStr = String(dateString);
   
+  // Проверяем формат DD.MM.YYYY-HH:MM:SS (например, 14.10.2025-10:42:45)
+  if (/^\d{2}\.\d{2}\.\d{4}-\d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+    const [datePart, timePart] = dateStr.split('-');
+    const [day, month, year] = datePart.split('.');
+    const [hours, minutes, seconds] = timePart.split(':');
+    
+    const date = new Date(
+      parseInt(year),
+      parseInt(month) - 1, // Месяцы от 0 до 11
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+    
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  // Проверяем формат YYYY-MM-DD-HH-MM-SS (например, 2025-10-14-10-03-07)
+  if (/^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(dateStr)) {
+    const parts = dateStr.split('-');
+    const [year, month, day, hours, minutes, seconds] = parts;
+    
+    const date = new Date(
+      parseInt(year),
+      parseInt(month) - 1, // Месяцы от 0 до 11
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+    
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
   // Проверяем формат YYYYMMDDHHMMSS (14 символов)
   if (dateStr.length === 14 && /^\d{14}$/.test(dateStr)) {
     const year = parseInt(dateStr.substring(0, 4));

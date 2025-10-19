@@ -37,11 +37,14 @@
         <div class="scan-frame">
           <span></span>
         </div>
-        <div class="hint">Наведите камеру на QR-код для оплаты</div>
+        <div class="hint">
+          <span v-if="cameraReady">Наведите камеру на QR-код для оплаты</span>
+          <span v-else>Инициализация камеры...</span>
+        </div>
       </div>
 
       <!-- Контролы -->
-      <div class="controls" v-if="!selectedImage">
+      <div class="controls">
         <!-- Кнопка выбора файла -->
         <label class="control-btn file-btn">
           <input type="file" accept="image/*" @change="handleFileUpload" hidden />
@@ -56,15 +59,6 @@
         <!-- Кнопка фонарика -->
         <button class="control-btn torch-btn" @click="toggleTorch">
           <img src="../assets/lamp.png" alt="">
-        </button>
-      </div>
-
-      <!-- Превью выбранного изображения -->
-      <div v-if="selectedImage" class="image-preview">
-        <img :src="selectedImage" alt="selected image" />
-        <button class="close-preview" @click="clearImage">×</button>
-        <button class="scan-from-preview" @click="scanFromImage">
-          {{ t('scanner_text2') }}
         </button>
       </div>
 
@@ -110,11 +104,11 @@ const scanInterval = ref(null);
 // Состояние сканнера
 const cameraReady = ref(false);
 const isManualScanning = ref(false);
-const selectedImage = ref(null);
 const showMessage = ref(false);
 const messageText = ref('');
 const messageType = ref('info');
 const torchEnabled = ref(false);
+const isProcessingQR = ref(false); // Флаг для предотвращения дублирования обработки
 
 // Функция для отображения сообщений
 const showMessageWithType = (text, type = 'info', duration = 3000) => {
@@ -134,11 +128,8 @@ const hideMessage = () => {
 // Инициализация камеры и сканнера
 const initCamera = async () => {
   try {
-    console.log('Инициализируем QR-сканнер...');
-    
     // Проверяем поддержку камеры
     const hasCamera = await QrScanner.hasCamera();
-    console.log('Камера доступна:', hasCamera);
     
     if (!hasCamera) {
       throw new Error('Камера не найдена');
@@ -152,7 +143,6 @@ const initCamera = async () => {
     qrScanner.value = new QrScanner(
       videoElement.value,
       (result) => {
-        console.log('QR-код найден:', result.data);
         handleQRDetected(result.data);
       },
       {
@@ -160,19 +150,35 @@ const initCamera = async () => {
         highlightScanRegion: false,
         highlightCodeOutline: false,
         preferredCamera: 'environment', // Задняя камера
-        maxScansPerSecond: 1,
+        maxScansPerSecond: 3, // Увеличиваем частоту сканирования
+        calculateScanRegion: (video) => {
+          // Определяем область сканирования в центре экрана
+          const smallerDimension = Math.min(video.videoWidth, video.videoHeight);
+          const scanSize = Math.round(0.7 * smallerDimension);
+          const x = Math.round((video.videoWidth - scanSize) / 2);
+          const y = Math.round((video.videoHeight - scanSize) / 2);
+          return {
+            x: x,
+            y: y,
+            width: scanSize,
+            height: scanSize,
+          };
+        },
       }
     );
 
-    console.log('QR-сканнер создан, запускаем...');
     await qrScanner.value.start();
     
     cameraReady.value = true;
-    console.log('QR-сканнер запущен успешно');
+    
+    // Запускаем дополнительное принудительное сканирование
+    setTimeout(() => {
+      if (cameraReady.value) {
+        startContinuousScanning();
+      }
+    }, 1000);
 
   } catch (error) {
-    console.error('Ошибка инициализации сканнера:', error);
-    
     let errorMessage = 'Не удалось запустить сканнер';
     
     if (error.name === 'NotAllowedError') {
@@ -193,42 +199,31 @@ const initCamera = async () => {
 
 // Тестовая функция для проверки работы QrScanner
 const testQrScanner = async () => {
-  console.log('=== Тестируем QrScanner ===');
-  
   try {
     // Проверяем поддержку камеры
     const hasCamera = await QrScanner.hasCamera();
-    console.log('Поддержка камеры:', hasCamera);
     
     // Проверяем поддержку WebRTC
     const isWebRTCSupported = !!navigator.mediaDevices?.getUserMedia;
-    console.log('WebRTC поддерживается:', isWebRTCSupported);
     
-    console.log('QrScanner тест завершен успешно');
     return hasCamera && isWebRTCSupported;
   } catch (error) {
-    console.error('Ошибка теста QrScanner:', error);
     return false;
   }
 };
 const onVideoLoaded = () => {
-  console.log('Видео загружено');
   // QrScanner управляет видео самостоятельно
 };
 
 // Сканирование из файла
 const scanFromFile = async (file) => {
-  console.log('Сканируем файл с QrScanner:', file.name, file.size);
-  
   try {
     const result = await QrScanner.scanImage(file, {
       returnDetailedScanResult: true,
     });
     
-    console.log('QrScanner результат из файла:', result.data);
     return result.data;
   } catch (error) {
-    console.log('QrScanner не нашел QR-код в файле:', error.message);
     return null;
   }
 };
@@ -238,8 +233,6 @@ const isValidPaymentUrl = (url) => {
   try {
     // Расширим критерии валидации
     if (!url || typeof url !== 'string') return false;
-    
-    console.log('Проверяем QR данные:', url);
     
     // Проверяем различные форматы платежных QR-кодов
     const isValidUrl = url.startsWith('http://') || url.startsWith('https://');
@@ -256,36 +249,29 @@ const isValidPaymentUrl = (url) => {
     // Принимаем любой QR-код длиннее 10 символов для тестирования
     const result = isValidUrl || hasCrypto || hasPaymentParams || url.length > 10;
     
-    console.log('Результат валидации:', result, {
-      isValidUrl,
-      hasCrypto, 
-      hasPaymentParams,
-      length: url.length
-    });
-    
     return result;
   } catch (error) {
-    console.error('Ошибка валидации URL:', error);
     return false;
   }
 };
 
 // Обработка найденного QR-кода
 const handleQRDetected = async (qrData) => {
+  // Предотвращаем дублирование обработки
+  if (isProcessingQR.value) {
+    return;
+  }
+  
   try {
-    console.log('Обрабатываем найденный QR-код:', qrData);
+    isProcessingQR.value = true;
     
     if (!isValidPaymentUrl(qrData)) {
-      console.log('QR-код не прошел валидацию:', qrData);
       showMessageWithType('QR-код найден, но не содержит данных для оплаты: ' + qrData.substring(0, 50), 'error', 5000);
       return;
     }
     
     // Останавливаем сканирование
-    if (qrScanner.value) {
-      qrScanner.value.stop();
-      console.log('Сканнер остановлен');
-    }
+    stopContinuousScanning();
     
     showMessageWithType('QR-код найден! Обрабатываем...', 'success', 2000);
     
@@ -293,40 +279,86 @@ const handleQRDetected = async (qrData) => {
     await walletStore.qrTake(qrData);
     
   } catch (error) {
-    console.error('Ошибка обработки QR-кода:', error);
     showMessageWithType('Ошибка обработки QR-кода', 'error');
     
     // Перезапускаем сканирование через 3 секунды
     setTimeout(() => {
       if (qrScanner.value && cameraReady.value) {
         qrScanner.value.start();
+        startContinuousScanning();
       }
     }, 3000);
+  } finally {
+    // Сбрасываем флаг через 2 секунды
+    setTimeout(() => {
+      isProcessingQR.value = false;
+    }, 2000);
   }
 };
 // Непрерывное сканирование управляется самим QrScanner
 const startContinuousScanning = () => {
-  console.log('QrScanner управляет сканированием автоматически');
   // QrScanner уже сканирует автоматически при запуске
+  
+  // Добавляем дополнительный механизм принудительного сканирования
+  if (scanInterval.value) {
+    clearInterval(scanInterval.value);
+  }
+  
+  scanInterval.value = setInterval(async () => {
+    if (!cameraReady.value || walletStore.loaderScan || isManualScanning.value || !qrScanner.value || isProcessingQR.value) {
+      return;
+    }
+    
+    try {
+      // Принудительно пытаемся сканировать текущий кадр
+      const video = videoElement.value;
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        const blob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/jpeg', 0.9);
+        });
+        
+        if (blob) {
+          try {
+            const result = await QrScanner.scanImage(blob, { returnDetailedScanResult: true });
+            if (result && result.data) {
+              handleQRDetected(result.data);
+            }
+          } catch (err) {
+            // QR-код не найден, это нормально
+          }
+        }
+      }
+    } catch (error) {
+      // Ошибки принудительного сканирования игнорируем
+    }
+  }, 2000); // Каждые 2 секунды
 };
 
 // Остановка сканирования
 const stopContinuousScanning = () => {
-  console.log('Останавливаем QrScanner');
   if (qrScanner.value) {
     qrScanner.value.stop();
+  }
+  
+  if (scanInterval.value) {
+    clearInterval(scanInterval.value);
+    scanInterval.value = null;
   }
 };
 
 // Ручное сканирование (по кнопке) - делаем моментальный снимок
 const captureAndScanManual = async () => {
   if (!cameraReady.value || isManualScanning.value || !qrScanner.value) {
-    console.log('Ручное сканирование недоступно');
     return;
   }
 
   isManualScanning.value = true;
-  console.log('Запускаем ручной захват изображения...');
   showMessageWithType('Сканирование...', 'info', 0);
 
   try {
@@ -344,11 +376,9 @@ const captureAndScanManual = async () => {
       canvas.toBlob(resolve, 'image/jpeg', 0.8);
     });
     
-    console.log('Кадр захвачен для ручного сканирования, размер:', blob.size);
     const qrData = await QrScanner.scanImage(blob, { returnDetailedScanResult: true });
     
     if (qrData && qrData.data) {
-      console.log('QR-код найден при ручном сканировании:', qrData.data);
       if (isValidPaymentUrl(qrData.data)) {
         showMessageWithType('QR-код распознан!', 'success', 2000);
         setTimeout(() => {
@@ -358,11 +388,9 @@ const captureAndScanManual = async () => {
         showMessageWithType('QR-код найден, но не содержит данных для оплаты: ' + qrData.data.substring(0, 50), 'error', 5000);
       }
     } else {
-      console.log('QR-код не найден при ручном сканировании');
       showMessageWithType('QR-код не найден. Попробуйте еще раз', 'error', 3000);
     }
   } catch (error) {
-    console.error('Ошибка ручного сканирования:', error);
     showMessageWithType('QR-код не найден в кадре', 'error', 3000);
   } finally {
     isManualScanning.value = false;
@@ -384,13 +412,12 @@ const toggleTorch = async () => {
       showMessageWithType('Фонарик не поддерживается', 'error');
     }
   } catch (error) {
-    console.error('Ошибка переключения фонарика:', error);
     showMessageWithType('Ошибка фонарика', 'error');
   }
 };
 
 // Загрузка файла изображения
-const handleFileUpload = (event) => {
+const handleFileUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
@@ -408,37 +435,13 @@ const handleFileUpload = (event) => {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    selectedImage.value = e.target.result;
-    stopContinuousScanning(); // Останавливаем сканирование при просмотре изображения
-  };
-  reader.onerror = () => {
-    showMessageWithType('Ошибка чтения файла', 'error', 3000);
-  };
-  reader.readAsDataURL(file);
-  
-  // Сбрасываем input для возможности повторной загрузки того же файла
-  event.target.value = '';
-};
-
-// Сканирование из загруженного изображения
-const scanFromImage = async () => {
-  if (!selectedImage.value) return;
-
-  console.log('Начинаем сканирование из загруженного изображения с QrScanner...');
+  // Сразу сканируем файл без показа превью
   showMessageWithType('Анализируем изображение...', 'info', 0);
-
+  
   try {
-    console.log('Загружаем изображение из data URL...');
-    const response = await fetch(selectedImage.value);
-    const blob = await response.blob();
-    
-    console.log('Изображение конвертировано в blob:', blob.size);
-    const qrData = await scanFromFile(blob);
+    const qrData = await scanFromFile(file);
     
     if (qrData) {
-      console.log('QR-код найден в загруженном изображении:', qrData);
       if (isValidPaymentUrl(qrData)) {
         showMessageWithType('QR-код распознан из изображения!', 'success', 2000);
         setTimeout(() => {
@@ -448,22 +451,14 @@ const scanFromImage = async () => {
         showMessageWithType('QR-код найден, но не содержит данных для оплаты: ' + qrData.substring(0, 50), 'error', 5000);
       }
     } else {
-      console.log('QR-код не найден в загруженном изображении');
       showMessageWithType('QR-код не найден в изображении', 'error', 3000);
     }
   } catch (error) {
-    console.error('Ошибка сканирования изображения:', error);
     showMessageWithType('Ошибка анализа изображения: ' + error.message, 'error', 3000);
   }
-};
-
-// Очистка выбранного изображения
-const clearImage = () => {
-  selectedImage.value = null;
-  // Перезапускаем сканнер
-  if (qrScanner.value && cameraReady.value) {
-    qrScanner.value.start();
-  }
+  
+  // Сбрасываем input для возможности повторной загрузки того же файла
+  event.target.value = '';
 };
 
 // Остановка камеры и сканнера
@@ -486,15 +481,8 @@ const goBack = () => {
 
 // Lifecycle hooks
 onMounted(async () => {
-  console.log('=== AppScanner mounted ===');
-  console.log('User Agent:', navigator.userAgent);
-  console.log('Is Telegram WebApp:', !!window.Telegram?.WebApp);
-  console.log('WebApp platform:', window.Telegram?.WebApp?.platform);
-  console.log('WebApp version:', window.Telegram?.WebApp?.version);
-  
   // Тестируем QrScanner
   const qrScannerWorks = await testQrScanner();
-  console.log('QrScanner работает:', qrScannerWorks);
   
   if (!qrScannerWorks) {
     showMessageWithType('Проблема с доступом к камере', 'error', 5000);
@@ -549,6 +537,7 @@ onUnmounted(() => {
   align-items: center;
   z-index: 100;
   pointer-events: none;
+  color: white;
 }
 
 .scan-frame {
@@ -617,6 +606,26 @@ onUnmounted(() => {
   font-weight: 500;
   font-size: 16px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.hint span {
+color: white;
+}
+
+.scanning-indicator {
+  font-size: 12px;
+  margin-top: 5px;
+  opacity: 0.8;
+  animation: scanPulse 2s ease-in-out infinite;
+}
+
+@keyframes scanPulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Контролы */
@@ -711,55 +720,6 @@ onUnmounted(() => {
 .close-btn:active {
   transform: scale(0.95);
   background: rgba(0, 0, 0, 0.8);
-}
-
-/* Превью изображения */
-.image-preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: black;
-  z-index: 1002;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.image-preview img {
-  max-width: 90%;
-  max-height: 70%;
-  margin-bottom: 20px;
-}
-
-.close-preview {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.4);
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  font-size: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-}
-
-.scan-from-preview {
-  background: #4caf50;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 30px;
-  font-size: 16px;
-  cursor: pointer;
-  margin-top: 20px;
 }
 
 /* Лоадер */
