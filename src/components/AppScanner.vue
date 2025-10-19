@@ -655,7 +655,9 @@ const startScanner = () => {
     showMessageToUser('Ошибка запуска сканера', 'error', 4000);
     isScanning = false;
   }
-};// Функция для захвата кадра из видео и его сканирования
+};
+
+// Функция для захвата кадра из видео и его сканирования
 const captureAndScanFrame = async () => {
   if (!videoElement || videoElement.readyState !== 4) {
     return; // Видео не готово
