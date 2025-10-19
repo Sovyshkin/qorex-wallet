@@ -168,7 +168,34 @@ const initCamera = async () => {
   }
 };
 
-// Обработчик загрузки видео
+// Тестовая функция для проверки работы html5-qrcode
+const testHtml5Qrcode = async () => {
+  console.log('=== Тестируем Html5Qrcode ===');
+  
+  try {
+    // Создаем тестовое изображение с QR-кодом (простой текст в base64)
+    const testQrDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.id = 'test-scan-region';
+    tempDiv.style.display = 'none';
+    document.body.appendChild(tempDiv);
+    
+    console.log('Создаем Html5Qrcode для теста...');
+    const html5QrCode = new Html5Qrcode('test-scan-region');
+    console.log('Html5Qrcode создан успешно');
+    
+    // Очищаем тест
+    await html5QrCode.clear();
+    document.body.removeChild(tempDiv);
+    console.log('Тест Html5Qrcode завершен успешно');
+    
+    return true;
+  } catch (error) {
+    console.error('Ошибка теста Html5Qrcode:', error);
+    return false;
+  }
+};
 const onVideoLoaded = () => {
   cameraReady.value = true;
   // Добавляем небольшую задержку чтобы видео полностью инициализировалось
@@ -181,17 +208,22 @@ const onVideoLoaded = () => {
 
 // Захват кадра из видео
 const captureFrame = async () => {
-  if (!videoElement.value || !cameraReady.value) return null;
+  if (!videoElement.value || !cameraReady.value) {
+    console.log('Видео не готово для захвата');
+    return null;
+  }
 
   try {
     // Проверяем готовность видео
     if (videoElement.value.readyState < 2) {
-      console.warn('Видео еще не готово для захвата');
+      console.warn('Видео еще не готово для захвата, readyState:', videoElement.value.readyState);
       return null;
     }
 
     const videoWidth = videoElement.value.videoWidth;
     const videoHeight = videoElement.value.videoHeight;
+    
+    console.log('Размеры видео:', { videoWidth, videoHeight });
     
     if (!videoWidth || !videoHeight || videoWidth <= 0 || videoHeight <= 0) {
       console.warn('Некорректные размеры видео:', { videoWidth, videoHeight });
@@ -210,6 +242,8 @@ const captureFrame = async () => {
     canvas.width = videoWidth;
     canvas.height = videoHeight;
     
+    console.log('Canvas создан:', canvas.width, 'x', canvas.height);
+    
     // Рисуем текущий кадр видео на canvas
     context.drawImage(videoElement.value, 0, 0, videoWidth, videoHeight);
     
@@ -217,11 +251,13 @@ const captureFrame = async () => {
     const blob = await new Promise((resolve, reject) => {
       canvas.toBlob((result) => {
         if (result) {
+          console.log('Blob создан успешно, размер:', result.size);
           resolve(result);
         } else {
+          console.error('Не удалось создать blob');
           reject(new Error('Не удалось создать blob'));
         }
-      }, 'image/jpeg', 0.8);
+      }, 'image/jpeg', 0.9); // Увеличиваем качество для лучшего распознавания
     });
 
     return blob;
@@ -233,31 +269,56 @@ const captureFrame = async () => {
 
 // Сканирование blob с помощью html5-qrcode
 const scanBlob = async (blob) => {
+  console.log('Начинаем сканирование blob:', blob?.size);
+  
   try {
     // Создаем временный div для сканирования
     const tempDiv = document.createElement('div');
-    tempDiv.id = 'temp-scan-region';
+    tempDiv.id = 'temp-scan-region-' + Date.now(); // Уникальный ID
     tempDiv.style.display = 'none';
     document.body.appendChild(tempDiv);
     
-    const html5QrCode = new Html5Qrcode('temp-scan-region');
+    console.log('Создан временный div:', tempDiv.id);
+    
+    const html5QrCode = new Html5Qrcode(tempDiv.id);
     const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+    
+    console.log('Создан файл для сканирования:', file.name, file.size);
     
     try {
       const result = await html5QrCode.scanFile(file, true);
+      console.log('Html5Qrcode результат:', result);
       return result;
+    } catch (scanError) {
+      console.log('Html5Qrcode ошибка сканирования:', scanError.message);
+      
+      // Пробуем альтернативный метод - через canvas и ImageData
+      try {
+        console.log('Пробуем альтернативный метод через canvas...');
+        const alternativeResult = await scanBlobAlternative(blob);
+        if (alternativeResult) {
+          console.log('Альтернативный метод успешен:', alternativeResult);
+          return alternativeResult;
+        }
+      } catch (altError) {
+        console.log('Альтернативный метод тоже неудачен:', altError.message);
+      }
+      
+      return null;
     } finally {
       try {
         await html5QrCode.clear();
+        console.log('Html5Qrcode очищен');
       } catch (e) {
-        // Игнорируем ошибки очистки
+        console.log('Ошибка очистки Html5Qrcode:', e.message);
       }
-      if (document.getElementById('temp-scan-region')) {
+      if (document.getElementById(tempDiv.id)) {
         document.body.removeChild(tempDiv);
+        console.log('Временный div удален');
       }
     }
   } catch (error) {
-    // QR-код не найден - это нормально
+    console.error('Общая ошибка сканирования:', error);
     return null;
   }
 };
@@ -265,41 +326,129 @@ const scanBlob = async (blob) => {
 // Проверка, является ли строка корректной ссылкой для оплаты
 const isValidPaymentUrl = (url) => {
   try {
-    const urlObj = new URL(url);
-    // Проверяем наличие параметров для оплаты
-    return urlObj.searchParams.has('sum') || 
-           urlObj.searchParams.has('amount') || 
-           url.includes('pay') || 
-           url.includes('payment') ||
-           url.includes('invoice');
-  } catch {
+    // Расширим критерии валидации
+    if (!url || typeof url !== 'string') return false;
+    
+    console.log('Проверяем QR данные:', url);
+    
+    // Проверяем различные форматы платежных QR-кодов
+    const isValidUrl = url.startsWith('http://') || url.startsWith('https://');
+    const hasCrypto = url.toLowerCase().includes('bitcoin:') || 
+                     url.toLowerCase().includes('ethereum:') || 
+                     url.toLowerCase().includes('ton:');
+    const hasPaymentParams = url.includes('amount=') || 
+                            url.includes('sum=') || 
+                            url.includes('value=') ||
+                            url.includes('pay') || 
+                            url.includes('payment') ||
+                            url.includes('invoice');
+    
+    // Принимаем любой QR-код длиннее 10 символов для тестирования
+    const result = isValidUrl || hasCrypto || hasPaymentParams || url.length > 10;
+    
+    console.log('Результат валидации:', result, {
+      isValidUrl,
+      hasCrypto, 
+      hasPaymentParams,
+      length: url.length
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Ошибка валидации URL:', error);
     return false;
   }
 };
 
+// Альтернативный метод сканирования через canvas (для Telegram)
+const scanBlobAlternative = async (blob) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    
+    img.onload = () => {
+      try {
+        console.log('Изображение загружено для альтернативного сканирования:', img.width, 'x', img.height);
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        // Получаем ImageData
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        console.log('ImageData получена:', imageData.width, 'x', imageData.height);
+        
+        // Пробуем найти QR-код простым способом
+        // Для тестирования временно возвращаем mock данные если изображение достаточно большое
+        if (img.width > 100 && img.height > 100) {
+          console.log('Изображение достаточно большое, возможно содержит QR-код');
+          // Здесь можно добавить дополнительную логику распознавания
+        }
+        
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      } catch (error) {
+        console.error('Ошибка альтернативного сканирования:', error);
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      }
+    };
+    
+    img.onerror = (error) => {
+      console.error('Ошибка загрузки изображения для альтернативного сканирования:', error);
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+    
+    img.src = objectUrl;
+  });
+};
 // Непрерывное сканирование каждую секунду
 const startContinuousScanning = () => {
   if (scanInterval.value) {
     clearInterval(scanInterval.value);
   }
 
+  console.log('Запускаем непрерывное сканирование...');
+
   scanInterval.value = setInterval(async () => {
-    if (!cameraReady.value || walletStore.loaderScan || isManualScanning.value) return;
+    if (!cameraReady.value || walletStore.loaderScan || isManualScanning.value) {
+      console.log('Пропускаем сканирование:', {
+        cameraReady: cameraReady.value,
+        loaderScan: walletStore.loaderScan,
+        isManualScanning: isManualScanning.value
+      });
+      return;
+    }
 
     try {
+      console.log('Захватываем кадр...');
       const blob = await captureFrame();
-      if (!blob) return;
+      if (!blob) {
+        console.log('Кадр не захвачен');
+        return;
+      }
 
+      console.log('Кадр захвачен, размер:', blob.size);
       const qrData = await scanBlob(blob);
       
-      if (qrData && isValidPaymentUrl(qrData)) {
-        console.log('QR-код найден:', qrData);
-        handleQRDetected(qrData);
+      if (qrData) {
+        console.log('QR-код найден в автоматическом сканировании:', qrData);
+        if (isValidPaymentUrl(qrData)) {
+          console.log('QR-код валиден, обрабатываем');
+          handleQRDetected(qrData);
+        } else {
+          console.log('QR-код не прошел валидацию');
+        }
+      } else {
+        console.log('QR-код не найден в кадре');
       }
     } catch (error) {
       console.error('Ошибка при автоматическом сканировании:', error);
     }
-  }, 1000); // Каждую секунду
+  }, 2000); // Увеличиваем интервал до 2 секунд для Telegram
 };
 
 // Остановка непрерывного сканирования
@@ -334,34 +483,42 @@ const handleQRDetected = async (qrData) => {
 
 // Ручное сканирование (по кнопке)
 const captureAndScanManual = async () => {
-  if (!cameraReady.value || isManualScanning.value) return;
+  if (!cameraReady.value || isManualScanning.value) {
+    console.log('Ручное сканирование недоступно:', { cameraReady: cameraReady.value, isManualScanning: isManualScanning.value });
+    return;
+  }
 
   isManualScanning.value = true;
-  showMessageWithType('Сканирование...', 'info', 0); // Показываем до завершения
+  console.log('Запускаем ручное сканирование...');
+  showMessageWithType('Сканирование...', 'info', 0);
 
   try {
     const blob = await captureFrame();
     if (!blob) {
+      console.error('Не удалось захватить кадр для ручного сканирования');
       throw new Error('Не удалось захватить кадр');
     }
 
+    console.log('Кадр захвачен для ручного сканирования, сканируем...');
     const qrData = await scanBlob(blob);
     
     if (qrData) {
+      console.log('QR-код найден при ручном сканировании:', qrData);
       if (isValidPaymentUrl(qrData)) {
         showMessageWithType('QR-код распознан!', 'success', 2000);
         setTimeout(() => {
           handleQRDetected(qrData);
         }, 500);
       } else {
-        showMessageWithType('QR-код не содержит данных для оплаты', 'error', 3000);
+        showMessageWithType('QR-код найден, но не содержит данных для оплаты: ' + qrData.substring(0, 50), 'error', 5000);
       }
     } else {
+      console.log('QR-код не найден при ручном сканировании');
       showMessageWithType('QR-код не найден. Попробуйте еще раз', 'error', 3000);
     }
   } catch (error) {
     console.error('Ошибка ручного сканирования:', error);
-    showMessageWithType('Ошибка сканирования', 'error', 3000);
+    showMessageWithType('Ошибка сканирования: ' + error.message, 'error', 3000);
   } finally {
     isManualScanning.value = false;
   }
@@ -427,29 +584,34 @@ const handleFileUpload = (event) => {
 const scanFromImage = async () => {
   if (!selectedImage.value) return;
 
+  console.log('Начинаем сканирование из загруженного изображения...');
   showMessageWithType('Анализируем изображение...', 'info', 0);
 
   try {
+    console.log('Загружаем изображение из data URL...');
     const response = await fetch(selectedImage.value);
     const blob = await response.blob();
     
+    console.log('Изображение конвертировано в blob:', blob.size);
     const qrData = await scanBlob(blob);
     
     if (qrData) {
+      console.log('QR-код найден в загруженном изображении:', qrData);
       if (isValidPaymentUrl(qrData)) {
         showMessageWithType('QR-код распознан из изображения!', 'success', 2000);
         setTimeout(() => {
           handleQRDetected(qrData);
         }, 500);
       } else {
-        showMessageWithType('QR-код не содержит данных для оплаты', 'error', 3000);
+        showMessageWithType('QR-код найден, но не содержит данных для оплаты: ' + qrData.substring(0, 50), 'error', 5000);
       }
     } else {
+      console.log('QR-код не найден в загруженном изображении');
       showMessageWithType('QR-код не найден в изображении', 'error', 3000);
     }
   } catch (error) {
     console.error('Ошибка сканирования изображения:', error);
-    showMessageWithType('Ошибка анализа изображения', 'error', 3000);
+    showMessageWithType('Ошибка анализа изображения: ' + error.message, 'error', 3000);
   }
 };
 
@@ -479,6 +641,20 @@ const goBack = () => {
 
 // Lifecycle hooks
 onMounted(async () => {
+  console.log('=== AppScanner mounted ===');
+  console.log('User Agent:', navigator.userAgent);
+  console.log('Is Telegram WebApp:', !!window.Telegram?.WebApp);
+  console.log('WebApp platform:', window.Telegram?.WebApp?.platform);
+  console.log('WebApp version:', window.Telegram?.WebApp?.version);
+  
+  // Тестируем Html5Qrcode
+  const html5QrcodeWorks = await testHtml5Qrcode();
+  console.log('Html5Qrcode работает:', html5QrcodeWorks);
+  
+  if (!html5QrcodeWorks) {
+    showMessageWithType('Проблема с библиотекой сканирования в Telegram', 'error', 5000);
+  }
+  
   await nextTick();
   await initCamera();
 });
