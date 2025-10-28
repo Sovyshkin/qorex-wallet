@@ -80,7 +80,7 @@ onMounted(() => {
                 : walletStore.transaction.type_trans === "output"
                 ? "-"
                 : "+"
-            }}{{ walletStore.transaction.amount }} USDT</span
+            }}{{ walletStore.roundToHundredths(walletStore.transaction.amount) }} USDT</span
           >
           <span class="amount-rub"
             >{{
@@ -89,7 +89,7 @@ onMounted(() => {
                 : walletStore.transaction.type_trans === "output"
                 ? "-"
                 : "+"
-            }}{{ walletStore.transaction.amountRub }} ₽</span
+            }}{{ walletStore.roundToHundredths(walletStore.transaction.amountRub) }} ₽</span
           >
         </div>
       </div>
@@ -225,6 +225,7 @@ h1 {
 .amount-usdt {
   font-size: 24px;
   font-weight: 400;
+  text-align: center;
 }
 
 .amount-rub {
