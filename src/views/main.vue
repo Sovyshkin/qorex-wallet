@@ -72,7 +72,7 @@ onMounted(async () => {
             </div>
           </div>
           <div class="coin-activity">
-            <span class="coin-balance" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance) }} ₽</span>
+            <span class="coin-balance" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance_rub) }} ₽</span>
             <span class="coin-balance" v-else>********</span>
             <span class="coin-balance-name" v-if="!walletStore.hideBalanceActive">{{ walletStore.roundToHundredths(walletStore.balance) }} USDT</span>
             <span class="coin-balance-name" v-else>********</span>

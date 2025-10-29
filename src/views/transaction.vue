@@ -38,6 +38,26 @@ const formatDateTime = (dateInput) => {
   return `${day}.${month}.${year} ${hours}:${minutes}`;
 };
 
+const getTransactionStatus = (boolSuccess) => {
+  // Проверяем различные значения статуса
+  switch (boolSuccess) {
+    case "Error timer":
+      return { text: t('error_timer'), class: 'error' };
+    case "True":
+    case 'success':
+    case true:
+      return { text: t('success'), class: 'success' };
+    case "Error":
+      return { text: t('transaction_error'), class: 'error' };
+    case 'wait':
+    case "wait_pay":
+    case false:
+      return { text: t('in_processing'), class: 'in_processing' };
+    default:
+      return { text: t('in_processing'), class: 'in_processing' };
+  }
+};
+
 onMounted(() => {
   let { id, amount_usdt, amount_rub, datatime, type_trans, bool_suecess } = route.query
   if (id && amount_usdt && amount_rub && datatime && type_trans && bool_suecess) {
@@ -97,12 +117,11 @@ onMounted(() => {
       <!-- <div class="status-badge" :class="walletStore.transaction.status">
         {{ t(walletStore.transaction.status) }}
       </div> -->
-      <span v-if="walletStore.transaction.bool_suecess" class="status-badge success">{{
-        t("success")
-      }}</span>
-      <span v-else class="status-badge in_processing">{{
-        t("in_processing")
-      }}</span>
+      <span 
+        :class="`status-badge ${getTransactionStatus(walletStore.transaction.bool_suecess).class}`"
+      >
+        {{ getTransactionStatus(walletStore.transaction.bool_suecess).text }}
+      </span>
 
       <div class="transaction-details">
         <div class="detail-item">
@@ -239,7 +258,6 @@ h1 {
   border-radius: 8px;
   font-size: 12px;
   font-weight: 400;
-  opacity: 0.8;
 }
 
 .success {
