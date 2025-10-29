@@ -136,6 +136,15 @@ const groupedHistory = computed(() => {
       groups[dateKey].items.push(item);
     });
     
+    // Сортируем элементы внутри каждой группы по времени (новые сверху)
+    Object.keys(groups).forEach(key => {
+      groups[key].items.sort((a, b) => {
+        const dateA = parseCustomDate(a.datatime);
+        const dateB = parseCustomDate(b.datatime);
+        return dateB - dateA; // Новые сверху
+      });
+    });
+    
     // Сортируем группы по дате (новые сверху)
     const sortedGroups = {};
     Object.keys(groups)
