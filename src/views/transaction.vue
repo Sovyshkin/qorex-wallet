@@ -24,11 +24,26 @@ const copy = (text) => {
 };
 
 const formatDateTime = (dateInput) => {
-  const date = new Date(dateInput);
+  let date;
+  
+  // Проверяем если формат "DD.MM.YYYY-HH:MM:SS"
+  if (typeof dateInput === 'string' && dateInput.includes('-') && dateInput.includes('.')) {
+    // Разбираем формат "30.10.2025-14:04:34"
+    const [datePart, timePart] = dateInput.split('-');
+    const [day, month, year] = datePart.split('.');
+    const [hours, minutes, seconds] = timePart.split(':');
+    
+    // Создаем дату в формате ISO: YYYY-MM-DDTHH:MM:SS
+    const isoString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds ? seconds.padStart(2, '0') : '00'}`;
+    date = new Date(isoString);
+  } else {
+    date = new Date(dateInput);
+  }
+  
   if (isNaN(date.getTime())) {
-
     return "Некорректная дата";
   }
+  
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();

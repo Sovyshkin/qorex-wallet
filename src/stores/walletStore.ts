@@ -22,10 +22,14 @@ export const useWalletStore = defineStore("wallet", () => {
   const message_status = ref("");
   // const userTg = ref({})
   const userTg = ref({
-    first_name: "Вадим",
-    last_name: "Заньков",
-    username: "zankov_22",
-    id: "978664527",
+    // first_name: "Вадим",
+    // last_name: "Заньков",
+    // username: "zankov_22",
+    // id: "978664527",
+    first_name: "",
+    last_name: "",
+    username: "",
+    id: "",
   });
   const user = ref({});
   const amount = ref("");
