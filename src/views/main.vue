@@ -25,6 +25,8 @@ onMounted(async () => {
 <template>
   <div class="wrapper">
     {{ walletStore.referalId }} - id реферала
+    <button @click="walletStore.testReferalExtraction()">Тест извлечения реферального ID</button>
+    <button @click="walletStore.createUser()">Тест создания пользователя</button>
     <header>
       <div class="user">
         <div class="wrap-avatar">

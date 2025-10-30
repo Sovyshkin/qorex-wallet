@@ -165,30 +165,57 @@ const changeLang = async (lang: string) => {
   };
 
   const getUserInfo = () => {
+    console.log('=== Начало getUserInfo ===');
+    console.log('URL:', window.location.href);
+    console.log('Search:', window.location.search);
+    console.log('Hash:', window.location.hash);
+    
     if (window.Telegram && window.Telegram.WebApp) {
+      console.log('Telegram WebApp найден');
       const initData = window.Telegram.WebApp.initData;
+      console.log('initData:', initData);
+      
       if (initData) {
         const decodedInitData = decodeURIComponent(initData);
+        console.log('decodedInitData:', decodedInitData);
+        
         const params = new URLSearchParams(decodedInitData);
         const userString = params.get("user");
         const start_param = params.get("start_param");
         
+        console.log('userString:', userString);
+        console.log('start_param:', start_param);
+        
+        // Выводим все параметры для анализа
+        console.log('Все параметры initData:');
+        params.forEach((value, key) => {
+          console.log(`  ${key} = ${value}`);
+        });
+        
         // Извлекаем реферальный ID из start_param
         if (start_param) {
-          console.log('start_param:', start_param);
+          console.log('Обрабатываем start_param:', start_param);
           
           // Если start_param содержит реферальную информацию в формате referal=ID
           if (start_param.includes('referal=')) {
             const referalMatch = start_param.match(/referal=(\d+)/);
             if (referalMatch) {
               referalId.value = referalMatch[1];
-              console.log('Найден реферальный ID в start_param:', referalId.value);
+              console.log('✅ Найден реферальный ID в start_param:', referalId.value);
             }
           }
           // Если start_param это просто число (ID реферера)
           else if (/^\d+$/.test(start_param)) {
             referalId.value = start_param;
-            console.log('Найден реферальный ID как число в start_param:', referalId.value);
+            console.log('✅ Найден реферальный ID как число в start_param:', referalId.value);
+          }
+          // Если start_param содержит URL с параметрами
+          else if (start_param.includes('referal')) {
+            const referalMatch = start_param.match(/referal[=:]?(\d+)/);
+            if (referalMatch) {
+              referalId.value = referalMatch[1];
+              console.log('✅ Найден реферальный ID в составном start_param:', referalId.value);
+            }
           }
         }
         
@@ -197,32 +224,44 @@ const changeLang = async (lang: string) => {
           // Проверяем URL параметры из самой реферральной ссылки
           const urlParams = new URLSearchParams(window.location.search);
           const referalFromUrl = urlParams.get('referal');
+          console.log('referalFromUrl:', referalFromUrl);
+          
           if (referalFromUrl && !referalId.value) {
             referalId.value = referalFromUrl;
-            console.log('Найден реферальный ID в URL:', referalId.value);
+            console.log('✅ Найден реферальный ID в URL:', referalId.value);
           }
           
           // Проверяем hash для случаев когда параметры передаются через #
           const hash = window.location.hash;
-          if (hash && hash.includes('referal=') && !referalId.value) {
-            const referalMatch = hash.match(/referal=(\d+)/);
+          if (hash && hash.includes('referal') && !referalId.value) {
+            console.log('Проверяем hash:', hash);
+            const referalMatch = hash.match(/referal[=:]?(\d+)/);
             if (referalMatch) {
               referalId.value = referalMatch[1];
-              console.log('Найден реферальный ID в hash:', referalId.value);
+              console.log('✅ Найден реферальный ID в hash:', referalId.value);
             }
           }
           
           // Проверяем параметр startapp
           const startApp = urlParams.get('startapp');
-          if (startApp && startApp.includes('referal=') && !referalId.value) {
-            const referalMatch = startApp.match(/referal=(\d+)/);
+          console.log('startApp:', startApp);
+          if (startApp && startApp.includes('referal') && !referalId.value) {
+            const referalMatch = startApp.match(/referal[=:]?(\d+)/);
             if (referalMatch) {
               referalId.value = referalMatch[1];
-              console.log('Найден реферальный ID в startapp:', referalId.value);
+              console.log('✅ Найден реферальный ID в startapp:', referalId.value);
             }
           }
         } catch (error) {
           console.log('Ошибка при парсинге URL параметров:', error);
+        }
+        
+        console.log('Итоговый referalId:', referalId.value);
+        
+        // ВРЕМЕННО: для тестирования принудительно устанавливаем реферальный ID
+        if (!referalId.value) {
+          referalId.value = "978664527"; // Тестовый ID из примера
+          console.log('🔧 ТЕСТ: Установлен тестовый referalId:', referalId.value);
         }
         
         if (userString) {
@@ -232,14 +271,19 @@ const changeLang = async (lang: string) => {
             router.push({ name: 'transaction_failed' })
           }
         }
+      } else {
+        console.log('initData пуст');
       }
     } else {
-      
+      console.log('Telegram WebApp не найден');
     }
+    console.log('=== Конец getUserInfo ===');
   };
 
   const createUser = async () => {
     try {
+      console.log('=== Начало createUser ===');
+      console.log('referalId.value:', referalId.value);
       
       const userData: any = {
         first_name: userTg.value.first_name,
@@ -248,17 +292,27 @@ const changeLang = async (lang: string) => {
         tg_id: String(userTg.value.id),
       };
       
-      console.log(referalId.value);
-      
+      // Добавляем поле whoreferal если есть реферальный ID
       if (referalId.value) {
         userData.whoreferal = referalId.value;
-        console.log('Отправляем пользователя с реферальным ID:', referalId.value);
+        console.log('✅ Отправляем пользователя с реферальным ID:', referalId.value);
+      } else {
+        console.log('❌ referalId пуст, отправляем пользователя без реферальной информации');
       }
       
+      console.log('Данные для отправки:', userData);
+      
       let response = await axios.post(`/new_user`, userData);
+      console.log('Ответ сервера:', response.data);
+      
+      // Очищаем реферальный ID после использования
+      if (referalId.value) {
+        referalId.value = "";
+        console.log('referalId очищен после отправки');
+      }
       
     } catch (err) {
-      
+      console.log('Ошибка в createUser:', err);
     }
   };
 
