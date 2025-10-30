@@ -216,7 +216,12 @@ onMounted(async () => {
               <div class="history-info">
                 <div class="wrap-img">
                   <img
-                    v-if="item.type_trans"
+                    v-if="item.type_trans === 'referal'"
+                    src="/assets/referal.svg"
+                    alt="transaction-type"
+                  />
+                  <img
+                    v-else-if="item.type_trans"
                     :src="`/assets/type-${item.type_trans}.svg`"
                     alt="transaction-type"
                   />

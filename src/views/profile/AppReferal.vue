@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useWalletStore } from "@/stores/walletStore";
 import { useRouter } from "vue-router";
@@ -23,28 +23,45 @@ const goBack = () => {
 };
 
 // Данные рефералов
-const referals = ref([
-  // {
-  //   name: "Sasha",
-  //   regDate: "02/18/2025",
-  //   amount: "170,12",
-  // },
-  // {
-  //   name: "Voron",
-  //   regDate: "02/18/2025",
-  //   amount: "70,12",
-  // },
-  // {
-  //   name: "Alex",
-  //   regDate: "02/18/2025",
-  //   amount: "10,12",
-  // },
-]);
+const referals = ref([]);
 
 // Общая статистика
 const stats = ref({
   totalreferals: 0,
   totalAmount: "0",
+});
+
+// Функция для загрузки рефералов
+const loadReferrals = async () => {
+  try {
+    const data = await walletStore.getMyReferrals();
+    if (data && Array.isArray(data)) {
+      referals.value = data;
+      stats.value.totalreferals = data.length;
+      
+      // Подсчитываем общую сумму заработанных денег
+      const totalEarned = data.reduce((sum, referal) => {
+        return sum + parseFloat(referal.referral_only_pay || 0);
+      }, 0);
+      stats.value.totalAmount = walletStore.roundToHundredths(totalEarned);
+    }
+  } catch (error) {
+    // Silently handle error
+  }
+};
+
+// Форматирование даты
+const formatDate = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+  } catch {
+    return dateString;
+  }
+};
+
+onMounted(() => {
+  loadReferrals();
 });
 </script>
 
@@ -93,7 +110,17 @@ const stats = ref({
           </div>
           <span class="stats-amount">{{ stats.totalAmount }} $</span>
         </div>
-        <div class="referals-list">
+        
+        <!-- Показываем загрузку -->
+        <div v-if="walletStore.isLoading" class="loading-state">
+          <div class="loading-spinner">
+            <img src="@/assets/cat-loader.svg" alt="Loading...">
+          </div>
+          <p>{{ t("loading") }}...</p>
+        </div>
+        
+        <!-- Показываем список рефералов или пустое состояние -->
+        <div v-else class="referals-list">
           <div
             class="referal-item"
             v-for="(referal, index) in referals"
@@ -103,13 +130,13 @@ const stats = ref({
             <div class="user-info">
               <div class="wrap-img"></div>
               <div class="user-info-more">
-                  <span class="user-name">@{{ referal.name }}</span>
+                  <span class="user-name">@{{ referal.username || referal.first_name || 'Пользователь' }}</span>
                   <span class="reg-date"
-                    >{{ t("registered") }} {{ referal.regDate }}</span
+                    >{{ t("earned") }}: {{ walletStore.roundToHundredths(referal.referral_only_pay || 0) }} $</span
                   >
               </div>
             </div>
-            <div class="user-amount">{{ referal.amount }} $</div>
+            <div class="user-amount">{{ walletStore.roundToHundredths(referal.referral_only_pay || 0) }} $</div>
           </div>
           
           <div v-if="referals.length === 0" class="empty-referals">
@@ -352,6 +379,39 @@ const stats = ref({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+  background-color: white;
+  border-radius: 12px;
+}
+
+.loading-spinner img {
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-state p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
 }
 
 .empty-referals {

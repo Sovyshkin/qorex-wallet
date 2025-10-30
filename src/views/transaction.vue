@@ -103,6 +103,12 @@ onMounted(() => {
       <div class="transaction-header">
         <div class="wrap-img">
           <img
+            v-if="walletStore.transaction.type_trans === 'referal'"
+            src="/assets/referal.svg"
+            alt="transaction-type"
+          />
+          <img
+            v-else
             :src="`/assets/type-${walletStore.transaction.type_trans}.svg`"
             alt="transaction-type"
           />
