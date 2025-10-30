@@ -248,12 +248,12 @@ const changeLang = async (lang: string) => {
         tg_id: String(userTg.value.id),
       };
       
-      // Добавляем поле whoreferal если есть реферальный ID
+      console.log(referalId.value);
+      
       if (referalId.value) {
         userData.whoreferal = referalId.value;
         console.log('Отправляем пользователя с реферальным ID:', referalId.value);
         
-        // Очищаем реферальный ID после использования
         referalId.value = "";
       }
       
