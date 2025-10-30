@@ -192,69 +192,113 @@ const changeLang = async (lang: string) => {
           console.log(`  ${key} = ${value}`);
         });
         
-        // Извлекаем реферальный ID из start_param
-        if (start_param) {
-          console.log('Обрабатываем start_param:', start_param);
-          
-          // Если start_param содержит реферальную информацию в формате referal=ID
-          if (start_param.includes('referal=')) {
-            const referalMatch = start_param.match(/referal=(\d+)/);
-            if (referalMatch) {
-              referalId.value = referalMatch[1];
-              console.log('✅ Найден реферальный ID в start_param:', referalId.value);
-            }
-          }
-          // Если start_param это просто число (ID реферера)
-          else if (/^\d+$/.test(start_param)) {
-            referalId.value = start_param;
-            console.log('✅ Найден реферальный ID как число в start_param:', referalId.value);
-          }
-          // Если start_param содержит URL с параметрами
-          else if (start_param.includes('referal')) {
-            const referalMatch = start_param.match(/referal[=:]?(\d+)/);
-            if (referalMatch) {
-              referalId.value = referalMatch[1];
-              console.log('✅ Найден реферальный ID в составном start_param:', referalId.value);
-            }
-          }
+        // Проверяем наличие start_param
+        if (!start_param) {
+          console.log('❌ start_param отсутствует!');
+          console.log('Это означает, что пользователь зашел НЕ по реферальной ссылке');
+          console.log('Для тестирования используйте ссылку вида:');
+          console.log('https://t.me/gardawallet_bot?startapp=referal_978664527');
+          console.log('или');
+          console.log('https://t.me/gardawallet_bot?start=referal_978664527');
         }
         
-        // Также проверяем другие возможные источники реферальных данных
-        try {
-          // Проверяем URL параметры из самой реферральной ссылки
-          const urlParams = new URLSearchParams(window.location.search);
-          const referalFromUrl = urlParams.get('referal');
-          console.log('referalFromUrl:', referalFromUrl);
-          
-          if (referalFromUrl && !referalId.value) {
-            referalId.value = referalFromUrl;
-            console.log('✅ Найден реферальный ID в URL:', referalId.value);
-          }
-          
-          // Проверяем hash для случаев когда параметры передаются через #
-          const hash = window.location.hash;
-          if (hash && hash.includes('referal') && !referalId.value) {
-            console.log('Проверяем hash:', hash);
-            const referalMatch = hash.match(/referal[=:]?(\d+)/);
-            if (referalMatch) {
-              referalId.value = referalMatch[1];
-              console.log('✅ Найден реферальный ID в hash:', referalId.value);
+        // Извлекаем реферальный ID из start_param
+            if (start_param) {
+              console.log('Найден start_param в initData:', start_param);
+              
+              // Новый формат: referal_ID
+              let referalMatch = start_param.match(/referal_(\d+)/);
+              if (referalMatch) {
+                referalId.value = referalMatch[1];
+                console.log('✅ Найден реферальный ID в start_param (новый формат referal_ID):', referalId.value);
+              } else {
+                // Старый формат: проверяем различные варианты
+                // referal=ID
+                referalMatch = start_param.match(/referal[=:](\d+)/);
+                if (referalMatch) {
+                  referalId.value = referalMatch[1];
+                  console.log('✅ Найден реферальный ID в start_param (старый формат referal=ID):', referalId.value);
+                } else if (start_param && /^\d+$/.test(start_param)) {
+                  // Если start_param содержит только цифры, то это может быть реферальный ID
+                  referalId.value = start_param;
+                  console.log('✅ Найден реферальный ID в start_param (только цифры):', referalId.value);
+                }
+              }
+            }          // Также проверяем другие возможные источники реферальных данных
+          try {
+            // Проверяем URL параметры из самой реферальной ссылки
+            const urlParams = new URLSearchParams(window.location.search);
+            const referalFromUrl = urlParams.get('referal');
+            console.log('referalFromUrl:', referalFromUrl);
+            
+            if (referalFromUrl && !referalId.value) {
+              referalId.value = referalFromUrl;
+              console.log('✅ Найден реферальный ID в URL:', referalId.value);
             }
-          }
-          
-          // Проверяем параметр startapp
-          const startApp = urlParams.get('startapp');
-          console.log('startApp:', startApp);
-          if (startApp && startApp.includes('referal') && !referalId.value) {
-            const referalMatch = startApp.match(/referal[=:]?(\d+)/);
-            if (referalMatch) {
-              referalId.value = referalMatch[1];
-              console.log('✅ Найден реферальный ID в startapp:', referalId.value);
+            
+            // Проверяем hash для случаев когда параметры передаются через #
+            const hash = window.location.hash;
+            if (hash && !referalId.value) {
+              console.log('Проверяем hash:', hash);
+              
+              // Проверяем разные возможные форматы в hash
+              if (hash.includes('referal')) {
+                // Новый формат referal_ID
+                let referalMatch = hash.match(/referal_(\d+)/);
+                if (referalMatch) {
+                  referalId.value = referalMatch[1];
+                  console.log('✅ Найден реферальный ID в hash (новый формат):', referalId.value);
+                } else {
+                  // Старый формат referal=ID
+                  referalMatch = hash.match(/referal[=](\d+)/);
+                  if (referalMatch) {
+                    referalId.value = referalMatch[1];
+                    console.log('✅ Найден реферальный ID в hash (старый формат):', referalId.value);
+                  }
+                }
+              }
+              
+              // Также проверяем startapp в hash
+              if (hash.includes('startapp') && hash.includes('referal') && !referalId.value) {
+                const startappMatch = hash.match(/startapp[=]?([^&]*)/);
+                if (startappMatch) {
+                  const startappValue = decodeURIComponent(startappMatch[1]);
+                  console.log('startapp из hash:', startappValue);
+                  
+                  let referalMatch = startappValue.match(/referal_(\d+)/);
+                  if (referalMatch) {
+                    referalId.value = referalMatch[1];
+                    console.log('✅ Найден реферальный ID в startapp из hash (новый формат):', referalId.value);
+                  } else {
+                    referalMatch = startappValue.match(/referal[=](\d+)/);
+                    if (referalMatch) {
+                      referalId.value = referalMatch[1];
+                      console.log('✅ Найден реферальный ID в startapp из hash (старый формат):', referalId.value);
+                    }
+                  }
+                }
+              }
             }
+            
+            // Проверяем параметр startapp
+            const startApp = urlParams.get('startapp');
+            console.log('startApp:', startApp);
+            if (startApp && startApp.includes('referal') && !referalId.value) {
+              let referalMatch = startApp.match(/referal_(\d+)/);
+              if (referalMatch) {
+                referalId.value = referalMatch[1];
+                console.log('✅ Найден реферальный ID в startapp (новый формат):', referalId.value);
+              } else {
+                referalMatch = startApp.match(/referal[=](\d+)/);
+                if (referalMatch) {
+                  referalId.value = referalMatch[1];
+                  console.log('✅ Найден реферальный ID в startapp (старый формат):', referalId.value);
+                }
+              }
+            }
+          } catch (error) {
+            console.log('Ошибка при парсинге URL параметров:', error);
           }
-        } catch (error) {
-          console.log('Ошибка при парсинге URL параметров:', error);
-        }
         
         console.log('Итоговый referalId:', referalId.value);
         
