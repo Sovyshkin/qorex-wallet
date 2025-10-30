@@ -66,13 +66,6 @@ const stats = ref({
         <h2 v-html="t('earn_up_to_15')"></h2>
       </div>
       <div class="referal-section">
-        <div class="referal-box">
-          <h3>{{ t("referal_code") }}</h3>
-          <div class="referal-box-value" @click="copy(walletStore.user.tg_id)">
-            <span>{{ walletStore.userTg.id }}</span>
-            <img src="@/assets/copy.svg" alt="copy" />
-          </div>
-        </div>
 
         <div class="referal-box">
           <h3>{{ t("referal_link") }}</h3>
