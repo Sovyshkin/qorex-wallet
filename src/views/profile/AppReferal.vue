@@ -126,7 +126,9 @@ onMounted(() => {
             v-if="referals.length > 0"
           >
             <div class="user-info">
-              <div class="wrap-img"></div>
+              <div class="wrap-img">
+                <img src="@/assets/referal.svg" alt="referal">
+              </div>
               <div class="user-info-more">
                   <span class="user-name">@{{ referal.username || referal.first_name || 'Пользователь' }}</span>
                   <span class="reg-date"
@@ -377,6 +379,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px;
+}
+
+.wrap-img img {
+  height: 24px;
+  width: 24px;
 }
 
 .loading-state {
