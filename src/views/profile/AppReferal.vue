@@ -49,7 +49,7 @@ const stats = ref({
 </script>
 
 <template>
-  <!-- <div class="referal-page">
+  <div class="referal-page">
     <header class="header">
       <img
         src="@/assets/arrow-left.svg"
@@ -69,7 +69,7 @@ const stats = ref({
         <div class="referal-box">
           <h3>{{ t("referal_code") }}</h3>
           <div class="referal-box-value" @click="copy(walletStore.user.tg_id)">
-            <span>{{ walletStore.user.tg_id }}</span>
+            <span>{{ walletStore.userTg.id }}</span>
             <img src="@/assets/copy.svg" alt="copy" />
           </div>
         </div>
@@ -80,12 +80,12 @@ const stats = ref({
             class="referal-box-value"
             @click="
               copy(
-                `https://t.me/gardawallet_bot?startapp=&referal=${walletStore.user.tg_id}`
+                `https://t.me/gardawallet_bot?startapp=&referal=${walletStore.userTg.id}`
               )
             "
           >
             <span>{{
-              `https://t.me/gardawallet_bot?startapp=&referal=${walletStore.user.tg_id}`
+              `https://t.me/gardawallet_bot?startapp=&referal=${walletStore.userTg.id}`
             }}</span>
             <img src="@/assets/copy.svg" alt="copy" />
           </div>
@@ -136,11 +136,11 @@ const stats = ref({
         {{ t("copied") }}
       </div>
     </transition>
-  </div> -->
-  <div class="container">
+  </div>
+  <!-- <div class="container">
         <img src="../../assets/cat-loader.svg" alt="">
         {{ t('in_development') }}...
-    </div>
+    </div> -->
 </template>
 
 <style scoped>
