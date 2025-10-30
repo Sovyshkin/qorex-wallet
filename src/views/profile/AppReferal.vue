@@ -24,6 +24,7 @@ const goBack = () => {
 
 // Данные рефералов
 const referals = ref([]);
+const isLoadingReferrals = ref(false);
 
 // Общая статистика
 const stats = ref({
@@ -33,7 +34,10 @@ const stats = ref({
 
 // Функция для загрузки рефералов
 const loadReferrals = async () => {
+  if (isLoadingReferrals.value) return; // Предотвращаем повторные запросы
+  
   try {
+    isLoadingReferrals.value = true;
     const data = await walletStore.getMyReferrals();
     if (data && Array.isArray(data)) {
       referals.value = data;
@@ -47,6 +51,8 @@ const loadReferrals = async () => {
     }
   } catch (error) {
     // Silently handle error
+  } finally {
+    isLoadingReferrals.value = false;
   }
 };
 
@@ -111,16 +117,8 @@ onMounted(() => {
           <span class="stats-amount">{{ stats.totalAmount }} $</span>
         </div>
         
-        <!-- Показываем загрузку -->
-        <div v-if="walletStore.isLoading" class="loading-state">
-          <div class="loading-spinner">
-            <img src="@/assets/cat-loader.svg" alt="Loading...">
-          </div>
-          <p>{{ t("loading") }}...</p>
-        </div>
-        
         <!-- Показываем список рефералов или пустое состояние -->
-        <div v-else class="referals-list">
+        <div class="referals-list">
           <div
             class="referal-item"
             v-for="(referal, index) in referals"

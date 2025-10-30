@@ -513,7 +513,6 @@ const changeLang = async (lang: string) => {
 
   const getMyReferrals = async () => {
     try {
-      isLoading.value = true;
       let response = await axios.get(`/my_ref/${userTg.value.id}`);
       
       if (response.status === 200) {
@@ -521,8 +520,6 @@ const changeLang = async (lang: string) => {
       }
     } catch (err) {
       return []; // Возвращаем пустой массив при ошибке
-    } finally {
-      isLoading.value = false;
     }
   };
 
