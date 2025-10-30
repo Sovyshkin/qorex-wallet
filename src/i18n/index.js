@@ -80,7 +80,7 @@ const messages = {
     mcc_code: "MCC-код",
     copied: "Скопировано",
     earn_up_to_15:
-      'Зарабатывай до <span style="color: #DEEC51; font-size: 26px; font-weight: 700;">3%</span> комиссионных с каждой покупки',
+      'Зарабатывайте до <span style="color: #DEEC51; font-size: 26px; font-weight: 700;">3%</span> с каждой покупки рефералов',
     referal_code: "Реферальный код",
     referal_link: "Реферальная ссылка",
     referals: "Рефералы",
@@ -181,7 +181,7 @@ const messages = {
     seller: "Seller",
     mcc_code: "MCC code",
     copied: "Copied",
-    earn_up_to_15: "Earn up to <span class='yellow'>3%</span> commission on each purchase.",
+    earn_up_to_15: "Earn up to <span style='color: #DEEC51; font-size: 26px; font-weight: 700;'>3%</span> from each referral purchase",
     referal_code: "Referral code",
     referal_link: "Referral link",
     referals: "Referrals",
