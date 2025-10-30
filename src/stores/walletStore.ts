@@ -253,8 +253,6 @@ const changeLang = async (lang: string) => {
       if (referalId.value) {
         userData.whoreferal = referalId.value;
         console.log('Отправляем пользователя с реферальным ID:', referalId.value);
-        
-        referalId.value = "";
       }
       
       let response = await axios.post(`/new_user`, userData);

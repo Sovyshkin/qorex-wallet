@@ -24,6 +24,7 @@ onMounted(async () => {
 </script>
 <template>
   <div class="wrapper">
+    {{ walletStore.referalId }} - id реферала
     <header>
       <div class="user">
         <div class="wrap-avatar">
