@@ -38,6 +38,7 @@ export const useWalletStore = defineStore("wallet", () => {
   const hideBalanceActive = ref(false);
   const pinCode = ref("");
   const referalId = ref(""); // Добавляем переменную для реферального ID
+  const isCreatingUser = ref(false); // Флаг для предотвращения повторного создания пользователя
 
   const history = ref([]);
 
@@ -272,7 +273,18 @@ const changeLang = async (lang: string) => {
   };
 
   const createUser = async () => {
+    if (isCreatingUser.value) {
+      return; // Если уже создаем пользователя, не делаем повторный запрос
+    }
+    
+    // Проверяем, не создавался ли уже пользователь ранее
+    const userCreatedFlag = localStorage.getItem(`user_created_${userTg.value.id}`);
+    if (userCreatedFlag) {
+      return; // Пользователь уже был создан
+    }
+    
     try {
+      isCreatingUser.value = true;
       const userData: any = {
         first_name: userTg.value.first_name,
         last_name: userTg.value.last_name,
@@ -287,6 +299,9 @@ const changeLang = async (lang: string) => {
       
       let response = await axios.post(`/new_user`, userData);
       
+      // Помечаем что пользователь создан
+      localStorage.setItem(`user_created_${userTg.value.id}`, 'true');
+      
       // Очищаем реферальный ID после использования
       if (referalId.value) {
         referalId.value = "";
@@ -294,6 +309,8 @@ const changeLang = async (lang: string) => {
       
     } catch (err) {
       // Silently handle errors
+    } finally {
+      isCreatingUser.value = false;
     }
   };
 
@@ -325,7 +342,7 @@ const changeLang = async (lang: string) => {
       
     } catch (err) {
       
-      if (err.status == 404 || err.status == 500) {
+      if ((err.status == 404 || err.status == 500) && !isCreatingUser.value) {
         await createUser();
       }
     }
