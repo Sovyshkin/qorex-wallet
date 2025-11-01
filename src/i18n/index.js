@@ -98,7 +98,7 @@ const messages = {
     camera_not_ready: "Камера не готова",
     qr_not_found_manual: "QR-код не найден",
     advanced_scanning: "Глубокое сканирование",
-    no_referals_description: "Поделитесь своей реферальной ссылкой с друзьями и получайте до 15% комиссионных с их операций"
+    no_referals_description: "Поделитесь своей реферальной ссылкой с друзьями и получайте до 3% с каждой их покупки"
   },
   EN: {
     referal: "Referral program",
@@ -194,7 +194,7 @@ const messages = {
     failed_text: "Try again",
     insufficient_funds: 'Insufficient funds',
     no_referals_yet: "No referrals yet",
-    no_referals_description: "Share your referral link with friends and earn up to 15% commission on their transactions",
+    no_referals_description: "Share your referral link with your friends and get up to 3% off each purchase.",
     qr_found: "QR-code found!",
     scanning: "Scanning...",
     camera_not_ready: "Camera not ready",
